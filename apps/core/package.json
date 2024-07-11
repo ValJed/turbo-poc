@@ -1,0 +1,17 @@
+{
+  "name": "apos",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "lint": "eslint .",
+    "mocha": "mocha",
+    "test": "npm run lint && npm run mocha"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

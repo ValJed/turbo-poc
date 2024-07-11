@@ -5,9 +5,12 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "mocha": "turbo mocha",
+    "test": "turbo test",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "mocha": "^10.6.0",
     "prettier": "^3.2.5",
     "turbo": "^2.0.6",
     "typescript": "^5.4.5"

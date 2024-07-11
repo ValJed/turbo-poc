@@ -1,0 +1,16 @@
+{
+  "name": "module1",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "lint": "eslint .",
+    "mocha": "mocha",
+    "test": "npm run lint && npm run mocha"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
