@@ -1,0 +1,6 @@
+{
+  "extends": [ "apostrophe", "plugin:vue/vue3-recommended" ],
+  "env": {
+    "mocha": true
+  }
+}

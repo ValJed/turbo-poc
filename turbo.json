@@ -12,6 +12,9 @@
     "mocha": {
       "dependsOn": ["^mocha"]
     },
+    "eslint": {
+      "dependsOn": ["^eslint"]
+    },
     "test": {
       "dependsOn": ["^test"]
     },
