@@ -18,6 +18,7 @@ module.exports = {
     insertViaUpload: true,
     slugPrefix: 'file-',
     autopublish: true,
+    versions: true,
     editRole: 'editor',
     publishRole: 'editor',
     showPermissions: true,
@@ -81,7 +82,12 @@ module.exports = {
     }
   },
   filters: {
-    remove: [ 'visibility' ]
+    remove: [ 'visibility' ],
+    add: {
+      _tags: {
+        label: 'apostrophe:tags'
+      }
+    }
   },
   methods(self) {
     return {

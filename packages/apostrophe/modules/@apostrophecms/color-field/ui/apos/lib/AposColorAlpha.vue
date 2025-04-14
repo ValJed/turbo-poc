@@ -1,17 +1,23 @@
 <template>
   <div class="apos-color__alpha">
     <div class="apos-color__alpha-checkboard-wrap">
-      <Checkboard />
+      <AposColorCheckerboard />
     </div>
-    <div class="apos-color__alpha-gradient" :style="{ background: gradientColor }" />
+    <div
+      class="apos-color__alpha-gradient"
+      :style="{ background: gradientColor }"
+    />
     <div
       ref="container"
       class="apos-color__alpha-container"
-      @mousedown="handleMouseDown"
+      @mousedown.prevent="handleMouseDown"
       @touchmove="handleChange"
       @touchstart="handleChange"
     >
-      <div class="apos-color__alpha-pointer" :style="{ left: `${colors.a * 100}%` }">
+      <div
+        class="apos-color__alpha-pointer"
+        :style="{ left: `${colors.a * 100}%` }"
+      >
         <div class="apos-color__alpha-picker" />
       </div>
     </div>
@@ -19,13 +25,8 @@
 </template>
 
 <script>
-import checkboard from './AposColorCheckerboard.vue';
-
 export default {
   name: 'AposColorAlpha',
-  components: {
-    Checkboard: checkboard
-  },
   props: {
     value: {
       type: Object,

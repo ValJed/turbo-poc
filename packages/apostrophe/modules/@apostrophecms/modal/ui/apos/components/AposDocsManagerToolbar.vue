@@ -31,7 +31,7 @@
           :disabled="!checkedCount"
           :modifiers="['small']"
           type="outline"
-          @click="confirmOperation({ action, label, ...rest })"
+          @click="executeOperation({ action, label, ...rest })"
         />
         <AposContextMenu
           v-else
@@ -135,7 +135,7 @@ export default {
     },
     checkedTypes: {
       type: Array,
-      default: () => []
+      default: null
     },
     checkedCount: {
       type: Number,
@@ -268,10 +268,19 @@ export default {
     registerPageChange(pageNum) {
       this.$emit('page-change', pageNum);
     },
+    executeOperation(operation) {
+      if (operation.modal) {
+        return this.modalOperation(operation);
+      }
+
+      return this.confirmOperation(operation);
+    },
     async beginGroupedOperation(action, operations) {
       const operation = operations.find(o => o.action === action);
 
-      operation.modal ? await this.modalOperation(operation) : await this.confirmOperation(operation);
+      operation.modal
+        ? await this.modalOperation(operation)
+        : await this.confirmOperation(operation);
     },
     async modalOperation({
       modal, ...rest

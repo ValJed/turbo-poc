@@ -95,7 +95,8 @@ module.exports = {
         'error',
         'warning',
         'success',
-        'info'
+        'info',
+        'progress'
       ], 'info');
       const icon = self.apos.launder.string(req.body.icon);
       const message = self.apos.launder.string(req.body.message);
@@ -258,8 +259,6 @@ module.exports = {
       // the application, as in a command line task.
 
       async trigger(req, message, options = {}, interpolate = {}) {
-        const { return: returnId, ...copiedOptions } = options;
-
         if (typeof req === 'string') {
           // String was passed, assume it is a user _id
           req = { user: { _id: req } };
@@ -282,17 +281,18 @@ module.exports = {
           interpolate: interpolate || options.interpolate || {},
           // Defaults to true, otherwise launder as boolean
           localize: has(req.body, 'localize')
-            ? self.apos.launder.boolean(req.body.localize) : true,
+            ? self.apos.launder.boolean(req.body.localize)
+            : true,
           job: options.job || null,
           event: options.event,
           classes: options.classes || null
         };
 
-        if (copiedOptions.dismiss === true) {
-          copiedOptions.dismiss = 5;
+        if (options.dismiss === true) {
+          options.dismiss = 5;
         }
 
-        Object.assign(notification, copiedOptions);
+        Object.assign(notification, options);
 
         await self.emit('beforeSave', req, notification);
 
@@ -310,13 +310,9 @@ module.exports = {
           }
         );
 
-        if (returnId) {
-          return {
-            noteId: notification._id
-          };
-        }
-
-        return {};
+        return {
+          noteId: notification._id
+        };
       },
 
       // The dismiss method accepts the following arguments:

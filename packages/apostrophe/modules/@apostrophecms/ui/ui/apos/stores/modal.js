@@ -86,10 +86,12 @@ export const useModalStore = defineStore('modal', () => {
 
   function updateModalData(id, data) {
     stack.value = stack.value.map((modal) => {
-      return modal.id === id ? {
-        ...modal,
-        ...data
-      } : modal;
+      return modal.id === id
+        ? {
+          ...modal,
+          ...data
+        }
+        : modal;
     });
   }
 
@@ -116,6 +118,18 @@ export const useModalStore = defineStore('modal', () => {
     return execute(apos.modal.components.confirm, {
       content: alertContent,
       mode: 'alert',
+      options
+    });
+  }
+
+  async function report(content, options = {}) {
+    const {
+      items, headers, ...rest
+    } = content;
+    return execute(apos.modal.components.report, {
+      items,
+      headers,
+      content: rest,
       options
     });
   }
@@ -184,6 +198,7 @@ export const useModalStore = defineStore('modal', () => {
     setModalResult,
     confirm,
     alert,
+    report,
     onTopOf
   };
 });

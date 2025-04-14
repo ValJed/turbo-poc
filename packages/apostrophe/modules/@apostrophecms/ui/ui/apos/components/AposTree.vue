@@ -1,5 +1,8 @@
 <template>
-  <div class="apos-tree" :class="{ 'apos-tree--nested': nested }">
+  <div
+    class="apos-tree"
+    :class="{ 'apos-tree--nested': nested }"
+  >
     <AposTreeHeader
       :headers="spacingRow"
       :icons="icons"
@@ -24,7 +27,9 @@
       :options="options"
       :tree-id="treeId"
       :module-options="moduleOptions"
+      :expanded-index="expandedIndex"
       @update="update"
+      @toggle="onToggleSection"
     />
   </div>
 </template>
@@ -84,7 +89,8 @@ export default {
       myItems: klona(this.items),
       nested: false,
       colWidths: null,
-      treeId: createId()
+      treeId: createId(),
+      expandedIndex: {}
     };
   },
   computed: {
@@ -193,6 +199,9 @@ export default {
         // The index of the moved item within its new context.
         endIndex: event.newIndex
       });
+    },
+    onToggleSection({ _id, expanded }) {
+      this.expandedIndex[_id] = expanded;
     }
   }
 };

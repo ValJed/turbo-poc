@@ -5,7 +5,10 @@
       'apos-is-replacing': showReplace
     }"
   >
-    <div v-if="activeMedia" class="apos-media-editor__inner">
+    <div
+      v-if="activeMedia"
+      class="apos-media-editor__inner"
+    >
       <div class="apos-media-editor__thumb-wrapper">
         <img
           v-if="activeMedia.attachment && activeMedia.attachment._urls"
@@ -15,10 +18,16 @@
         >
       </div>
       <ul class="apos-media-editor__details">
-        <li v-if="createdDate" class="apos-media-editor__detail">
+        <li
+          v-if="createdDate"
+          class="apos-media-editor__detail"
+        >
           {{ $t('apostrophe:mediaCreatedDate', { createdDate }) }}
         </li>
-        <li v-if="fileSize" class="apos-media-editor__detail">
+        <li
+          v-if="fileSize"
+          class="apos-media-editor__detail"
+        >
           {{ $t('apostrophe:mediaFileSize', { fileSize }) }}
         </li>
         <li
@@ -34,7 +43,10 @@
         </li>
       </ul>
       <ul class="apos-media-editor__links">
-        <li class="apos-media-editor__link" aria-hidden="true">
+        <li
+          class="apos-media-editor__link"
+          aria-hidden="true"
+        >
           <AposButton
             type="quiet"
             label="apostrophe:replace"
@@ -42,7 +54,10 @@
             @click="showReplace = true"
           />
         </li>
-        <li v-if="activeMedia.attachment && activeMedia.attachment._urls" class="apos-media-editor__link">
+        <li
+          v-if="activeMedia.attachment && activeMedia.attachment._urls"
+          class="apos-media-editor__link"
+        >
           <AposButton
             type="quiet"
             label="apostrophe:view"
@@ -50,11 +65,14 @@
             @click="viewMedia"
           />
         </li>
-        <li v-if="activeMedia.attachment && activeMedia.attachment._urls" class="apos-media-editor__link">
+        <li
+          v-if="activeMedia.attachment && activeMedia.attachment._urls"
+          class="apos-media-editor__link"
+        >
           <AposButton
             type="quiet"
             label="apostrophe:download"
-            :href="!isArchived ? activeMedia.attachment._urls.original : false"
+            :href="!isArchived ? activeMedia.attachment._urls.original : null"
             :disabled="isArchived"
             download
           />
@@ -131,12 +149,7 @@ export default {
     },
     moduleLabels: {
       type: Object,
-      default() {
-        return {
-          label: 'Image',
-          pluralLabel: 'Images'
-        };
-      }
+      required: true
     }
   },
   emits: [ 'back', 'modified' ],
@@ -322,7 +335,7 @@ export default {
         });
         apos.bus.$emit('content-changed', {
           doc,
-          action: 'update'
+          action: this.restoreOnly ? 'restore' : 'update'
         });
         this.original = klona(this.docFields.data);
       } catch (e) {
@@ -335,7 +348,7 @@ export default {
             : this.$t('apostrophe:mediaManagerErrorSaving');
 
           await this.handleSaveError(e, {
-            fallback: `${errorMessage} ${this.moduleLabels.label}`
+            fallback: `${errorMessage} ${this.moduleLabels.singular}`
           });
         }
       } finally {

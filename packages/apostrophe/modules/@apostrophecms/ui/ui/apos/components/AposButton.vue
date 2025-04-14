@@ -22,14 +22,22 @@
       v-on="href ? {} : {click: click}"
     >
       <transition name="fade">
-        <AposSpinner v-if="busy" :color="spinnerColor" />
+        <AposSpinner
+          v-if="busy"
+          :color="spinnerColor"
+        />
       </transition>
       <span
         v-if="colorStyle"
         class="apos-button__color-preview"
       >
-        <span :style="colorStyle" class="apos-button__color-preview__swatch" />
-        <span class="apos-button__color-preview__checkerboard" />
+        <span
+          :style="colorStyle"
+          class="apos-button__color-preview__swatch"
+        />
+        <div class="apos-button__color-preview__checkerboard">
+          <AposColorCheckerboard />
+        </div>
       </span>
       <div class="apos-button__content">
         <AposIndicator
@@ -41,7 +49,10 @@
           @icon="$emit('icon', $event)"
         />
         <slot name="label">
-          <span class="apos-button__label" :class="{ 'apos-sr-only' : (iconOnly || type === 'color') }">
+          <span
+            class="apos-button__label"
+            :class="{ 'apos-sr-only' : (iconOnly || type === 'color') }"
+          >
             {{ $t(label, interpolate) }}
           </span>
         </slot>
@@ -358,7 +369,6 @@ export default {
 
   .apos-button__color-preview__checkerboard {
     z-index: $z-index-base;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMElEQVQ4T2N89uzZfwY8QFJSEp80A+OoAcMiDP7//483HTx//hx/Ohg1gIFx6IcBALl+VXknOCvFAAAAAElFTkSuQmCC');
   }
 
   .apos-button--small {

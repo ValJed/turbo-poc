@@ -52,7 +52,8 @@ export default {
       modal: {
         active: false,
         type: 'overlay',
-        showModal: false
+        showModal: false,
+        triggerFocusRefresh: 0
       },
       modalTitle: {
         key: 'apostrophe:editType',
@@ -126,17 +127,38 @@ export default {
     },
     currentDocServerErrors() {
       let serverErrors = null;
-      ((this.serverError && this.serverError.data && this.serverError.data.errors) || []).forEach(error => {
-        const [ _id, fieldName ] = error.path.split('.');
-        if (_id === this.currentId) {
-          serverErrors = serverErrors || {};
-          serverErrors[fieldName] = error;
-        }
-      });
+      ((this.serverError && this.serverError.data && this.serverError.data.errors) || [])
+        .forEach(error => {
+          const [ _id, fieldName ] = error.path.split('.');
+          if (_id === this.currentId) {
+            serverErrors = serverErrors || {};
+            serverErrors[fieldName] = error;
+          }
+        });
       return serverErrors;
     },
     currentDocMeta() {
       return this.meta[this.currentId]?.aposMeta || {};
+    },
+    isModified() {
+      if (this.currentId) {
+        const currentIndex = this.next.findIndex(item => item._id === this.currentId);
+        if (detectDocChange(this.schema, this.next[currentIndex], this.currentDoc.data)) {
+          return true;
+        }
+      }
+      if (this.next.length !== this.original.length) {
+        return true;
+      }
+      for (let i = 0; (i < this.next.length); i++) {
+        if (this.next[i]._id !== this.original[i]._id) {
+          return true;
+        }
+        if (detectDocChange(this.schema, this.next[i], this.original[i])) {
+          return true;
+        }
+      }
+      return false;
     }
   },
   async mounted() {
@@ -156,6 +178,7 @@ export default {
       }
     }
     this.titleFieldChoices = await this.getTitleFieldChoices();
+    this.modal.triggerFocusRefresh++;
   },
   methods: {
     setCurrentDoc(_id) {
@@ -200,6 +223,7 @@ export default {
         this.next.push(item);
         await this.select(item._id);
         this.updateMinMax();
+        this.modal.triggerFocusRefresh++;
       }
     },
     updateMinMax() {
@@ -239,26 +263,7 @@ export default {
     getFieldValue(name) {
       return this.currentDoc.data[name];
     },
-    isModified() {
-      if (this.currentId) {
-        const currentIndex = this.next.findIndex(item => item._id === this.currentId);
-        if (detectDocChange(this.schema, this.next[currentIndex], this.currentDoc.data)) {
-          return true;
-        }
-      }
-      if (this.next.length !== this.original.length) {
-        return true;
-      }
-      for (let i = 0; (i < this.next.length); i++) {
-        if (this.next[i]._id !== this.original[i]._id) {
-          return true;
-        }
-        if (detectDocChange(this.schema, this.next[i], this.original[i])) {
-          return true;
-        }
-      }
-      return false;
-    },
+
     async validate(validateItem, validateLength) {
       if (validateItem && this.next.length > 0 && this.currentId) {
         this.triggerValidation = true;
@@ -294,7 +299,8 @@ export default {
         // If the titleField references a select input, use the
         // select label as the slat label, rather than the value.
         if (this.titleFieldChoices) {
-          const choice = this.titleFieldChoices.find(choice => choice.value === candidate);
+          const choice = this.titleFieldChoices
+            .find(choice => choice.value === candidate);
           if (choice && choice.label) {
             candidate = choice.label;
           }
@@ -346,6 +352,7 @@ export default {
               choices = result.choices;
             }
           } catch (e) {
+            // eslint-disable-next-line no-console
             console.error(this.$t('apostrophe:errorFetchingTitleFieldChoicesByMethod', { name: titleField.name }));
           }
 

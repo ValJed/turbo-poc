@@ -1751,7 +1751,9 @@ module.exports = {
             const add = [];
             const remove = [];
 
-            // Add type in projection by default
+            // Add fundamentals by default to allow Apostrophe's core
+            // operations to find what they expect (determining document type,
+            // distinguishing documents from widgets)
             const hasExclusion = Object.values(projection).some(value => !value);
             if (!_.isEmpty(projection) && !hasExclusion) {
               add.push('type');
@@ -2480,6 +2482,16 @@ module.exports = {
               // except this one (filtering by topic pares down the list of categories and
               // vice versa)
               const _query = baseQuery.clone();
+              // Make sure this is a legitimate builder before attempting to shut it off
+              if (!_.has(query.builders, filter)) {
+                continue;
+              }
+              // Make sure it would ever be accepted via a query parameter before attempting
+              // to shut it off
+              if (!query.builders[filter].launder) {
+                continue;
+              }
+              // Now shut it off
               _query[filter](null);
               choices[filter] = await _query.toChoices(filter, { counts: query.get('counts') });
             }

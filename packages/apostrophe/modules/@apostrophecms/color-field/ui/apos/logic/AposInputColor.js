@@ -12,24 +12,22 @@ export default {
   data() {
     return {
       active: false,
-      tinyColorObj: null,
-      startsNull: false,
-      defaultFormat: 'hex8',
-      defaultPickerOptions: {
-        presetColors: [
-          '#D0021B', '#F5A623', '#F8E71C', '#8B572A', '#7ED321',
-          '#417505', '#BD10E0', '#9013FE', '#4A90E2', '#50E3C2',
-          '#B8E986', '#000000', '#4A4A4A', '#9B9B9B', '#FFFFFF'
-        ],
-        disableAlpha: false,
-        disableFields: false
-      }
+      tinyColorObj: null
     };
   },
   computed: {
-    // Color picker doesn't allow null or undefined values
+    isMicro() {
+      return this.modifiers.includes('micro');
+    },
+    isInline() {
+      return this.modifiers.includes('inline');
+    },
     pickerValue() {
-      return this.next || '';
+      return this.next || this.defaultValue;
+    },
+    // Color picker doesn't allow null or undefined values
+    defaultValue() {
+      return this.field.def || '';
     },
     buttonOptions() {
       return {
@@ -38,22 +36,8 @@ export default {
         color: this.modelValue.data || ''
       };
     },
-    format() {
-      return this.field.options && this.field.options.format
-        ? this.field.options.format
-        : this.defaultFormat;
-    },
-    pickerOptions() {
-      const fieldOptions = this.field.options?.pickerOptions || {};
-      return Object.assign(this.defaultPickerOptions, fieldOptions);
-    },
-
-    valueLabel() {
-      if (this.next) {
-        return this.next;
-      } else {
-        return 'None Selected';
-      }
+    options() {
+      return this.field?.options || {};
     },
     classList() {
       return [
@@ -75,12 +59,7 @@ export default {
       this.active = false;
     },
     update(value) {
-      this.tinyColorObj = new TinyColor(value.hsl);
-      if (value._cssVariable) {
-        this.next = value._cssVariable;
-      } else {
-        this.next = this.tinyColorObj.toString(this.format);
-      }
+      this.next = value;
     },
     validate(value) {
       if (this.field.required) {

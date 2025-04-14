@@ -48,6 +48,7 @@ module.exports = {
     searchable: false,
     slugPrefix: 'user-',
     localized: false,
+    versions: false,
     editRole: 'admin',
     publishRole: 'admin',
     viewRole: 'admin',
@@ -107,7 +108,7 @@ module.exports = {
           following: 'title'
         },
         email: {
-          type: 'string',
+          type: 'email',
           label: 'apostrophe:email'
         },
         password: {

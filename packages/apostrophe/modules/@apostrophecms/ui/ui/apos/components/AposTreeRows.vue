@@ -3,7 +3,7 @@
     item-key="_id"
     class="apos-tree__list"
     tag="ol"
-    :list="rows"
+    :list="computedRows"
     :options="dragOptions"
     @start="startDrag"
     @end="endDrag"
@@ -26,7 +26,7 @@
             class="apos-tree__row__toggle"
             data-apos-tree-toggle
             :aria-label="$t('apostrophe:toggleSection')"
-            :aria-expanded="!options.startCollapsed"
+            :aria-expanded="row.__expanded"
             @click="toggleSection($event)"
           >
             <AposIndicator
@@ -37,7 +37,7 @@
           <component
             :is="getEffectiveType(col, row)"
             v-for="(col, index) in headers"
-            :key="`${col.property}-${index}`"
+            :key="`${row.__key}-${col.property}-${index}`"
             :draft="row"
             :published="row._publishedDoc"
             :header="col"
@@ -81,6 +81,7 @@
                 readOnly: maxReached && !checked.includes(row._id)
               }"
               :choice="{ value: row._id }"
+              @pointerdown="pointerEvent"
             />
             <span class="apos-tree__cell__value">
               <AposIndicator
@@ -89,7 +90,10 @@
                 class="apos-tree__cell__icon"
                 :icon-size="getEffectiveIconSize(col, row)"
               />
-              <span v-if="getEffectiveCellLabel(col, row)" class="apos-tree__cell__label">
+              <span
+                v-if="getEffectiveCellLabel(col, row)"
+                class="apos-tree__cell__label"
+              >
                 {{ getEffectiveCellLabel(col, row) }}
               </span>
             </span>
@@ -109,12 +113,14 @@
           :list-id="row._id"
           :tree-id="treeId"
           :options="options"
-          :class="{ 'apos-is-collapsed': options.startCollapsed }"
+          :class="{ 'apos-is-collapsed': !row.__expanded }"
           :style="{
-            'max-height': options.startCollapsed ? '0' : null
+            'max-height': !row.__expanded ? '0' : null
           }"
           :module-options="moduleOptions"
+          :expanded-index="expandedIndex"
           @update="$emit('update', $event)"
+          @toggle="$emit('toggle', $event)"
         />
       </li>
     </template>
@@ -182,6 +188,12 @@ export default {
       type: String,
       required: true
     },
+    expandedIndex: {
+      type: Object,
+      default() {
+        return {};
+      }
+    },
     moduleOptions: {
       type: Object,
       default() {
@@ -189,13 +201,22 @@ export default {
       }
     }
   },
-  emits: [ 'update', 'update:checked', 'change' ],
+  emits: [ 'update', 'update:checked', 'change', 'toggle' ],
   data() {
     return {
       treeBranches: []
     };
   },
   computed: {
+    computedRows() {
+      return this.rows.map(row => {
+        return {
+          ...row,
+          __expanded: this.isExpanded(row._id),
+          __key: `${row._id}-${row.level}-${row.rank}`
+        };
+      });
+    },
     // Handle the local check state within this component.
     checkedProxy: {
       get() {
@@ -207,6 +228,10 @@ export default {
     },
     dragOptions() {
       return {
+        scroll: true,
+        scrollSensitivity: 100, // px, how near the mouse must be to an edge to start scrolling.
+        scrollSpeed: 1000, // px, speed of the scrolling
+        bubbleScroll: true, // apply autoscroll to all parent elements, allowing for easier movement
         group: this.treeId,
         fallbackOnBody: true,
         swapThreshold: 0.65,
@@ -231,6 +256,11 @@ export default {
     });
   },
   methods: {
+    // Fix for chrome when some text is selected (needed double click to check the box)
+    // Comes from sortablejs, so we avoid the event to propagate to sortablejs listener
+    pointerEvent(event) {
+      event.stopPropagation();
+    },
     setHeights() {
       this.treeBranches.forEach(branch => {
         // Add padding to the max-height to avoid needing a `resize`
@@ -256,16 +286,28 @@ export default {
       const rowList = row.querySelector('[data-apos-branch-height]');
       const toggle = (data && data.toggle) ||
         event.target.closest('[data-apos-tree-toggle]');
+      const rowId = row.dataset.rowId;
 
       if (toggle.getAttribute('aria-expanded') !== 'true') {
         rowList.style.maxHeight = rowList.getAttribute('data-apos-branch-height');
         toggle.setAttribute('aria-expanded', true);
         rowList.classList.remove('apos-is-collapsed');
+        this.$emit('toggle', {
+          _id: rowId,
+          expanded: true
+        });
       } else if (rowList) {
         rowList.style.maxHeight = 0;
         toggle.setAttribute('aria-expanded', false);
         rowList.classList.add('apos-is-collapsed');
+        this.$emit('toggle', {
+          _id: rowId,
+          expanded: false
+        });
       }
+    },
+    isExpanded(id) {
+      return this.expandedIndex[id] ?? !this.options.startCollapsed;
     },
     keydownRow(event) {
       if (event.key === ' ') {

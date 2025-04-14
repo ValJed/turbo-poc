@@ -97,7 +97,8 @@ module.exports = {
       // simpler wrapper for this method if you are implementing a batch operation
       // on a single type of piece.
       //
-      // Notification messages should be included on a `req.body.messages` object. See `triggerNotification for details`.
+      // Notification messages should be included on a `req.body.messages` object.
+      // See `triggerNotification for details`.
       async runBatch(req, ids, change, options = {}) {
         let job;
         let notification;
@@ -120,7 +121,8 @@ module.exports = {
             // can't show progress.
             jobId: total && job._id,
             ids,
-            action: options.action
+            action: options.action,
+            docTypes: options.docTypes
           });
 
           return {
@@ -185,7 +187,8 @@ module.exports = {
       // background afterwards. You can pass `jobId` to the `progress` API route
       // of this module as `_id` on the request body to get job status info.
       //
-      // Notification messages should be included on a `req.body.messages` object. See `triggerNotification for details`.
+      // Notification messages should be included on a `req.body.messages` object.
+      // See `triggerNotification for details`.
       async run(req, doTheWork, options = {}) {
         const res = req.res;
         let job;
@@ -195,7 +198,10 @@ module.exports = {
           job = await self.start(options);
 
           const notification = await self.triggerNotification(req, 'progress', {
-            jobId: job._id
+            jobId: job._id,
+            ids: options.ids,
+            action: options.action,
+            docTypes: options.docTypes
           });
 
           run({ notificationId: notification.noteId });
@@ -282,13 +288,13 @@ module.exports = {
           job: {
             _id: options.jobId,
             action: options.action,
-            ids: options.ids
+            ids: options.ids,
+            docTypes: options.docTypes
           },
           event,
           classes: options.classes,
           icon: req.body.messages.icon || 'database-export-icon',
-          type: options.type || 'success',
-          return: true
+          type: options.type || 'success'
         });
       },
       // Start tracking a long-running job. Called by routes

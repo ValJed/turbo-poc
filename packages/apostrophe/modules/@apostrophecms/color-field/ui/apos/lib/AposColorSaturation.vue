@@ -3,13 +3,16 @@
     ref="container"
     class="apos-color__saturation"
     :style="{ background: bgColor }"
-    @mousedown="handleMouseDown"
+    @mousedown.prevent="handleMouseDown"
     @touchmove="handleChange"
     @touchstart="handleChange"
   >
     <div class="apos-color__saturation-white" />
     <div class="apos-color__saturation-black" />
-    <div class="apos-color__saturation-pointer" :style="{ top: pointerTop, left: pointerLeft }">
+    <div
+      class="apos-color__saturation-pointer"
+      :style="{ top: pointerTop, left: pointerLeft }"
+    >
       <div class="apos-color__saturation-circle" />
     </div>
   </div>

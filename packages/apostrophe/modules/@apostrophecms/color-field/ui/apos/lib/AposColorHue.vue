@@ -1,13 +1,16 @@
 <template>
-  <div class="apos-color__hue" :class="[directionClass]">
+  <div
+    class="apos-color__hue"
+    :class="[directionClass]"
+  >
     <div
       ref="container"
-      class="vc-hue-container"
+      class="apos-color__hue-container"
       role="slider"
       :aria-valuenow="colors.hsl.h"
       aria-valuemin="0"
       aria-valuemax="360"
-      @mousedown="handleMouseDown"
+      @mousedown.prevent="handleMouseDown"
       @touchmove="handleChange"
       @touchstart="handleChange"
     >

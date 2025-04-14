@@ -1,6 +1,6 @@
 {
   "name": "apostrophe",
-  "version": "4.11.2",
+  "version": "4.14.2",
   "description": "The Apostrophe Content Management System.",
   "main": "index.js",
   "scripts": {
@@ -69,6 +69,7 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "css-loader": "^5.2.4",
+    "csv-parse": "^5.6.0",
     "dayjs": "^1.9.8",
     "dompurify": "^2.3.1",
     "express": "^4.16.4",
@@ -121,7 +122,7 @@
     "tiny-emitter": "^2.1.0",
     "tough-cookie": "^4.0.0",
     "underscore.string": "^3.3.4",
-    "uploadfs": "^1.22.6",
+    "uploadfs": "^1.24.3",
     "vue": "^3.3.8",
     "vue-advanced-cropper": "^2.8.8",
     "vue-loader": "^17.1.0",
@@ -131,14 +132,12 @@
     "xregexp": "^2.0.0"
   },
   "devDependencies": {
-    "@babel/eslint-parser": "^7.17.0",
     "eslint-config-apostrophe": "workspace:*",
     "mocha": "^10.7.3",
     "nyc": "^15.1.0",
     "replace-in-file": "^6.1.0",
     "stylelint": "^16.5.0",
-    "stylelint-config-apostrophe": "^4.2.0",
-    "vue-eslint-parser": "^7.1.1"
+    "stylelint-config-apostrophe": "^4.2.0"
   },
   "browserslist": [
     "ie >= 10"
