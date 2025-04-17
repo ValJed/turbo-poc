@@ -19,7 +19,7 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@apostrophecms-pro/automatic-translation": "github:apostrophecms/automatic-translation",
-    "apostrophe": "github:apostrophecms/apostrophe",
+    "apostrophe": "workspace:*",
     "eslint-config-apostrophe": "workspace:*",
     "form-data": "^4.0.0",
     "mocha": "^10.2.0",
