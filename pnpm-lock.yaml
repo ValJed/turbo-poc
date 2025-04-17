@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      eslint:
-        specifier: ^8.57.1
-        version: 8.57.1
       turbo:
         specifier: ^2.0.6
         version: 2.5.0
@@ -393,8 +390,8 @@ importers:
         specifier: github:apostrophecms/automatic-translation
         version: git+https://git@github.com:apostrophecms/automatic-translation.git#4473d66e33bae809eef74e2ce21536bf64cc9a04
       apostrophe:
-        specifier: github:apostrophecms/apostrophe
-        version: https://codeload.github.com/apostrophecms/apostrophe/tar.gz/a740ff83028e4b47c6e9a868bc4aa189a52a6cce(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(gcp-metadata@5.3.0)(mongodb@6.15.0(gcp-metadata@5.3.0))
+        specifier: workspace:*
+        version: link:../apostrophe
       eslint-config-apostrophe:
         specifier: workspace:*
         version: link:../eslint-config-apostrophe
