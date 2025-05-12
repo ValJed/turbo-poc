@@ -14,6 +14,8 @@ const glob = require('./lib/glob.js');
 const moogRequire = require('./lib/moog-require');
 let defaults = require('./defaults.js');
 
+console.log('=====> test <=====')
+
 // ## Top-level options
 //
 // `cluster`
