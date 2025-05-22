@@ -67,9 +67,9 @@ export default {
         if (this.rendering && (isEqual(this.rendering.parameters, parameters))) {
           this.rendered = this.rendering.html;
         } else {
-          // Don't use a placeholder here, it causes flickering in live preview mode.
-          // It is better to display the old until we display the new,
-          // we have "busy" for clarity
+          // Don't use a placeholder here, it causes flickering in live preview
+          // mode. It is better to display the old until we display the new, we
+          // have "busy" for clarity
           const result = await apos.http.post(`${apos.area.action}/render-widget?aposEdit=1&aposMode=${this.mode}`, {
             busy: true,
             body: parameters
@@ -83,7 +83,7 @@ export default {
         // in the DOM before hinting that it might be time to prepare
         // sub-area editors and run players
         setTimeout(function() {
-          apos.bus.$emit('widget-rendered');
+          apos.bus.$emit('widget-rendered', { edit: !aposLivePreview });
         }, 0);
       } catch (e) {
         this.rendered = '<p>Unable to render this widget.</p>';

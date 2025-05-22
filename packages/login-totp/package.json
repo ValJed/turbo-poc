@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/apostrophecms/login-totp#readme",
   "devDependencies": {
-    "apostrophe": "github:apostrophecms/apostrophe",
+    "apostrophe": "workspace:*",
     "eslint-config-apostrophe": "workspace:*",
     "mocha": "^7.2.0",
     "stylelint": "^16.0.0",

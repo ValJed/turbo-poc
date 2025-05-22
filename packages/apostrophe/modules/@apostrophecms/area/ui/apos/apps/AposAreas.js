@@ -20,17 +20,19 @@ export default function() {
     widgetsRendering++;
   });
 
-  apos.bus.$on('widget-rendered', function() {
+  apos.bus.$on('widget-rendered', options => {
     widgetsRendering--;
-    createAreaAppsAndRunPlayersIfDone();
+    createAreaAppsAndRunPlayersIfDone(options);
   });
 
   apos.bus.$on('refreshed', function() {
     createAreaAppsAndRunPlayersIfDone();
   });
 
-  function createAreaAppsAndRunPlayersIfDone() {
-    createAreaApps();
+  function createAreaAppsAndRunPlayersIfDone({ edit = true } = {}) {
+    if (edit) {
+      createAreaApps();
+    }
     if (widgetsRendering === 0) {
       apos.util.runPlayers();
     }
@@ -65,7 +67,6 @@ export default function() {
   }
 
   function createAreaApp(el) {
-
     const options = JSON.parse(el.getAttribute('data-options'));
     const data = JSON.parse(el.getAttribute('data'));
     const fieldId = el.getAttribute('data-field-id');

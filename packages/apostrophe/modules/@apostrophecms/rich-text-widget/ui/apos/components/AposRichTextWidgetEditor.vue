@@ -226,7 +226,7 @@ export default {
     },
     tableTippyOptions() {
       return {
-        zIndex: 999,
+        zIndex: 2001,
         placement: 'top',
         offset: [ 0, 35 ],
         moveTransition: 'transform 0s ease-out',
@@ -283,9 +283,12 @@ export default {
       // no configuration needed. If:
       // 1. The table is configured for the toolbar but not insert, move it
       // 2. remove the table tool from the toolbar
-      if (activeOptions.toolbar.some(tool => tool === 'table')) {
-        if (!activeOptions.insert.some(tool => tool === 'table')) {
-          activeOptions.insert.push('table');
+      if (activeOptions.toolbar?.some(tool => tool === 'table')) {
+        if (!activeOptions.insert?.some(tool => tool === 'table')) {
+          activeOptions.insert = [
+            ...(activeOptions.insert || []),
+            'table'
+          ];
         }
         activeOptions.toolbar = activeOptions.toolbar.filter(tool => tool !== 'table');
       }
@@ -345,9 +348,9 @@ export default {
       if (this.isVisuallyEmpty) {
         classes.push('apos-is-visually-empty');
       }
-      // Per Stu's original logic we have to deal with an edge case when the page is
-      // first loading by displaying the initial placeholder then too (showPlaceholder
-      // state not yet computed)
+      // Per Stu's original logic we have to deal with an edge case when the
+      // page is first loading by displaying the initial placeholder then too
+      // (showPlaceholder state not yet computed)
       const hasPlaceholder = this.placeholderText && this.moduleOptions.placeholder;
       if (
         (hasPlaceholder || this.insert.length) &&
@@ -752,6 +755,11 @@ function traverseNextNode(node) {
 
   $z-index-button-background: 1;
   $z-index-button-foreground: 2;
+
+  .bubble-menu {
+    width: max-content;
+    max-width: 95vw;
+  }
 
   .apos-rich-text-toolbar.editor-menu-bubble {
     z-index: $z-index-manager-toolbar;
