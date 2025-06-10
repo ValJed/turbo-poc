@@ -192,6 +192,7 @@ describe('Assets', function() {
     assert.deepEqual(filled.css, expectedEntryPointsNames.css);
   });
 
+  // TODO
   it('should build the right bundles in dev and prod modes', async function () {
     process.env.NODE_ENV = 'production';
 
@@ -288,6 +289,7 @@ describe('Assets', function() {
     await t.destroy(apos);
   });
 
+  // TODO
   it('should build with cache and gain performance', async function() {
     await removeCache();
     await removeCache(cacheFolderPath.replace('/webpack-cache', '/changed'));
@@ -1203,6 +1205,7 @@ describe('Assets', function() {
     fs.writeFileSync(assetPath, assetContent, 'utf8');
   });
 
+  // TODO
   it('should be able to setup the debounce time', async function() {
 
     apos = await t.create({
@@ -1218,6 +1221,7 @@ describe('Assets', function() {
     assert.equal(apos.asset.buildWatcherDebounceMs, 500);
   });
 
+  // TODO
   it('should be able to register an external build watcher', async function() {
     await t.destroy(apos);
 
