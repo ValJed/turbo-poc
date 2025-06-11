@@ -1221,7 +1221,7 @@ describe('Assets', function() {
     assert.equal(apos.asset.buildWatcherDebounceMs, 500);
   });
 
-  // TODO
+  // TODO (explore)
   it('should be able to register an external build watcher', async function() {
     await t.destroy(apos);
 
