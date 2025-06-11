@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const setupPackages = ({ folder = 'test' }) => {
   const testNodeModules = path.join(__dirname, '../', folder, 'node_modules/');
@@ -17,16 +18,16 @@ const setupPackages = ({ folder = 'test' }) => {
   // whether packages in node_modules are project level or not
 
   const packageJson = path.join(__dirname, '../', folder, 'package.json');
-  // Remove it first, in case it's the old-style symlink to the main package.json,
-  // which would break
+  // Remove it first, in case it's the old-style symlink to the main
+  // package.json, which would break
   fs.removeSync(packageJson);
   const packageJsonInfo = {
     name: folder,
     dependencies: {
-      apostrophe: '^4.0.0'
+      apostrophe: 'workspace:*'
     },
     devDependencies: {
-      'test-bundle': '1.0.0'
+      'test-bundle': 'file:./test-bundle'
     }
   };
   for (const dir of dirs) {
@@ -34,26 +35,16 @@ const setupPackages = ({ folder = 'test' }) => {
     if (dir.startsWith('@')) {
       const submodules = fs.readdirSync(path.join(extras, dir));
       for (const submodule of submodules) {
-        packageJsonInfo.dependencies[`${dir}/${submodule}`] = '1.0.0';
+        packageJsonInfo.dependencies[`${dir}/${submodule}`] = `file:./extra_node_modules/${dir}/${submodule}`;
       }
     } else {
-      packageJsonInfo.dependencies[dir] = '1.0.0';
+      packageJsonInfo.dependencies[dir] = `file:./extra_node_modules/${dir}`;
     }
   }
 
   fs.writeFileSync(packageJson, JSON.stringify(packageJsonInfo, null, '  '));
 
-  // A "project level" package-lock.json for checking webpack build cache
-
-  const packageLockJson = path.join(__dirname, '../', folder, 'package-lock.json');
-  const packageLockJsonInfo = {
-    _: 'Do not change, fake lock used for testing',
-    name: 'apostrophe',
-    version: 'current',
-    packages: {}
-  };
-  fs.removeSync(packageLockJson);
-  fs.writeFileSync(packageLockJson, JSON.stringify(packageLockJsonInfo, null, '  '));
+  execSync('pnpm install ./');
 };
 setupPackages({ folder: 'test' });
 

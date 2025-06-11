@@ -393,6 +393,7 @@ export default {
           type: widget.type,
           docId: this.docId,
           parentFollowingValues: this.followingValues,
+          areaFieldId: this.fieldId,
           meta: this.meta[widget._id]?.aposMeta,
           preview
         });
@@ -415,8 +416,8 @@ export default {
         index
       });
     },
-    // Regenerate all array item, area, object and widget ids so they are considered
-    // new. Useful when copying a widget with nested content.
+    // Regenerate all array item, area, object and widget ids so they are
+    // considered new. Useful when copying a widget with nested content.
     regenerateIds(schema, object) {
       object._id = createId();
       for (const field of schema) {
@@ -439,23 +440,23 @@ export default {
         // actual files, and the reference count will update automatically
       }
     },
-    async update(widget, { autosave = true } = {}) {
-      widget.aposPlaceholder = false;
-      if (!widget.metaType) {
-        widget.metaType = 'widget';
+    async update(updated, { autosave = true } = {}) {
+      updated.aposPlaceholder = false;
+      if (!updated.metaType) {
+        updated.metaType = 'widget';
       }
       if (autosave && (this.docId === window.apos.adminBar.contextId)) {
         apos.bus.$emit('context-edited', {
-          [`@${widget._id}`]: widget
+          [`@${updated._id}`]: updated
         });
       }
-      const index = this.next.findIndex(w => w._id === widget._id);
-      this.next = [
-        ...this.next.slice(0, index),
-        widget,
-        ...this.next.slice(index + 1)
-      ];
-      this.edited[widget._id] = true;
+      this.next = this.next.map((widget) => {
+        if (widget._id === updated._id) {
+          return updated;
+        }
+        return widget;
+      });
+      this.edited[updated._id] = true;
     },
     // Add a widget into an area.
     async add({
@@ -501,6 +502,7 @@ export default {
           options: this.widgetOptionsByType(name),
           type: name,
           docId: this.docId,
+          areaFieldId: this.fieldId,
           parentFollowingValues: this.followingValues,
           preview
         });

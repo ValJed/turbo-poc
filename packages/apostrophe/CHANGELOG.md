@@ -4,7 +4,46 @@
 
 ### Adds
 
+* Uses new `widgetOperations` to add the `adjustImage` operation to the image widget.
+* Adds image widget width slider. Introduce widget options `defaultImageWidth` (percentage, 100 by default, a full width) and `imageResizeStep` to control the initial width of the image and the step of the width slider (default is 5) respectively. Projects that override the `widget.html` template should sync back the changes from the original template `modules/@apostrophecms/image-widget/views/widget.html`.
+* Adds a server validation before adding a widget to an area. Introduces a new POST route `@apostrophecms/area/validate-widget`.
+* The new `widgetOperations` cascade config property can be used to display custom operations for widgets. 
+A `secondaryLevel: true` option is available to add operations to the widget's controls context menu.
+
+### Changes
+
+* Enable widget live preview by default.
+
+### Fixes
+
+* Fixes `range` field type default value not being set properly.
+* Fixes autocomplete and search sorting and as a consequence, fixes potential duplicates during pagination.
+* Fixes all eslint warnings.
+* Widget live preview is now attempting to auto-position the Widget Editor modal only if no explicit widget configuration (`options.origin`) is provided.
+
+### Changes
+
+* Updates the default fields for the `getMangageApiProjection()` to include a more sensible base configuration and adds a `true` option to return the minimal default values.
+
+## 4.15.2 (2025-04-28)
+
+### Security
+
+* Fixes a potential XSS attack vector, [CVE-2025-26791](https://github.com/advisories/GHSA-vhxf-7vqr-mrjg). While the risk was low, it was possible for one user with login and editing privileges to carry out an XSS attack on another by uploading a specially crafted SVG file. Normally this would not work because ApostropheCMS typically renders uploaded SVGs via an `img` tag, however if the second user downloaded the SVG file from the media library the exploit could work.
+
+## 4.15.1 (2025-04-22)
+
+### Fixes
+
+* Fixes a RT bug where including `table` in `toolbar` but omitting an `insert` array crashed the rich text editor.
+
+## 4.15.0 (2025-04-16)
+
+### Adds
+
 * To display a live preview on the page as changes are made to widgets, set the `preview: true` option on any widget module. To turn it on for all widgets, you can set it on the `@apostrophecms/widget-type` module, the base class of all widget modules. This works especially well when `range` fields are used to achieve visual effects.
+* Adds separate control bar for editing tables in rich text
+* Adds ability to drag-resize rich text table columns
 
 ### Changes
 
@@ -15,15 +54,23 @@
 * Change reset password form button label to `Reset Password`.
 * Removed overly verbose logging of schema errors in the schema module itself. These are already logged appropriately if they become the actual result of an API call. With this change it becomes possible to catch and discard or mitigate these in some situations without excessive log output.
 * Bumps eslint-config-apostrophe, fix errors and a bunch of warnings.
+* Gets back checkboxes in the media manager.
 
 ### Fixes
 
+* Adds missing notifications and error handling in media manager and save notification for auto-published pieces.
 * Update `uploadfs` to `1.24.3`.
 * Fixes an edge case where reordering a page in the Page Manager might affect another locale.
 * Fixes chrome bug when pages manager checkboxes need a double click when coming from the rich text editor (because some text is selected).
 * Fixes the rich text insert menu image menu not being properly closed.
 * Fixes the rich text toolbar not closing sometimes when unfocusing the editor.
 * Fixes missing wording on images batch operations.
+* Fixes rich text toolbar width being limited to parent width.
+* Fixes rich text insert menu focused item text color easily overridable.
+* Fixes long overlapping text in the header of the Report modal.
+* Fixes clipped text in the pager and in the relationship filters of piece manager.
+* Fixes an error when pressing Enter in a relationship input without a focused suggestion.
+* Fixes locale switcher not allowing to switch the page of an article when its parent page is draft only.
 
 ## 4.14.2 (2025-04-02)
 
@@ -49,8 +96,6 @@
 * Adds the missing "Tags" filter to the chooser/manager view of files.
 * Adds batch operations to the media manager.
 * Passes `moduleName` to the event `content-changed` for batch operations, to know if data should be refreshed or not.
-* Adds separate control bar for editing tables in rich text
-* Adds ability to drag-resize rich text table columns
 
 ### Changes
 
