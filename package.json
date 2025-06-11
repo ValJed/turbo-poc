@@ -16,6 +16,9 @@
   "engines": {
     "node": ">=18"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "packageManager": "pnpm@10.8.0",
   "dependencies": {
     "eslint": "8",
