@@ -2,6 +2,7 @@
   "name": "turbo-poc",
   "private": true,
   "scripts": {
+    "install": "npm install --workspaces",
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
@@ -20,5 +21,11 @@
   "dependencies": {
     "eslint": "8",
     "sharp": "^0.34.3"
-  }
+  },
+  "workspaces": [
+    "packages/apostrophe",
+    "packages/eslint-config-apostrophe",
+    "packages/import-export",
+    "packages/login-totp"
+  ]
 }
