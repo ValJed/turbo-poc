@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}Installing npm dependencies in all workspace packages...${NC}"
+CUR_DIR="$(dirname "$(realpath "$0")")"
+
+# Check if packages directory exists
+if [ ! -d "${CUR_DIR}/packages" ]; then
+    echo -e "${RED}Error: 'packages' directory not found!${NC}"
+    echo "Make sure you're running this script from the monorepo root."
+    exit 1
+fi
+
+# Counter for packages processed
+count=0
+success=0
+failed=0
+
+cd "$CUR_DIR" || exit
+
+# First install root dependencies
+if [ -f "package.json" ]; then
+  if (npm install 2>&1); then
+      echo -e "${GREEN}✅ Successfully installed dependencies at root level"
+      ((success++))
+  else
+      echo -e "${RED}❌ Failed to install dependencies at root level"
+      ((failed++))
+  fi
+
+      ((count++))
+fi
+
+# Loop through all directories in packages/
+for dir in packages/*/; do
+  echo "$dir"
+    # Check if directory exists and contains package.json
+    if [ -d "$dir" ] && [ -f "$dir/package.json" ]; then
+        package_name=$(basename "$dir")
+        echo -e "\n${YELLOW}📦 Installing dependencies for: ${package_name}${NC}"
+        
+        # Change to package directory and run npm install
+        echo "Running: cd $dir && npm install"
+        if (cd "$dir" && npm install 2>&1); then
+            echo -e "${GREEN}✅ Successfully installed dependencies for ${package_name}${NC}"
+            ((success++))
+        else
+            echo -e "${RED}❌ Failed to install dependencies for ${package_name}${NC}"
+            ((failed++))
+        fi
+        
+        ((count++))
+    fi
+done
+
+# Summary
+echo -e "\n${BLUE}=== Installation Summary ===${NC}"
+echo -e "Total packages processed: ${count}"
+echo -e "${GREEN}Successful installations: ${success}${NC}"
+
+if [ $failed -gt 0 ]; then
+    echo -e "${RED}Failed installations: ${failed}${NC}"
+    exit 1
+else
+    echo -e "${GREEN}All packages installed successfully! 🎉${NC}"
+fi
