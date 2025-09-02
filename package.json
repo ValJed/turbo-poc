@@ -19,6 +19,6 @@
   "packageManager": "pnpm@10.8.0",
   "dependencies": {
     "eslint": "8",
-    "sharp": "^0.34.1"
+    "sharp": "^0.34.3"
   }
 }
