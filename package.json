@@ -19,5 +19,9 @@
   "packageManager": "pnpm@10.8.0",
   "dependencies": {
     "eslint": "8"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }
