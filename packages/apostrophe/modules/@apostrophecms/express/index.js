@@ -49,13 +49,12 @@
 //
 // ### `prefix` *(a global option, not a module option)*
 //
-// This module implements parts of the sitewide `prefix` option, which is a global
-// option to Apostrophe not specific to this module. If a `prefix` such
-// as `/blog` is present, the site responds with its home page
-// at `/blog` rather than `/`. All calls to `res.redirect` are adjusted
-// accordingly, and supporting code in other modules adjusts AJAX calls
-// made by jQuery as well, so that your code does not have to be
-// "prefix-aware" in order to work.
+// This module implements parts of the sitewide `prefix` option, which is a
+// global option to Apostrophe not specific to this module. If a `prefix` such
+// as `/blog` is present, the site responds with its home page at `/blog` rather
+// than `/`. All calls to `res.redirect` are adjusted accordingly, and
+// supporting code in other modules adjusts AJAX calls made by jQuery as well,
+// so that your code does not have to be "prefix-aware" in order to work.
 //
 // ### `session`
 //
@@ -112,7 +111,8 @@
 // back (see the [same-origin policy](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)).
 // All modern browsers will refuse to allow a CSRF attacker,
 // such as a malicious `POST`-method `form` tag on a third
-// party site pointing to an Apostrophe site, to send cookies to the Apostrophe site.
+// party site pointing to an Apostrophe site, to send cookies to the Apostrophe
+// site.
 //
 // All non-safe HTTP requests (not `GET`, `HEAD`, `OPTIONS` or `TRACE`)
 // automatically receive this protection via the csrf middleware, which
@@ -315,6 +315,12 @@ module.exports = {
           const info = self.options.apiKeys[key];
           if (info.role === 'admin') {
             taskReq = self.apos.task.getReq();
+          } else if (info.role === 'editor') {
+            taskReq = self.apos.task.getEditorReq();
+          } else if (info.role === 'contributor') {
+            taskReq = self.apos.task.getContributorReq();
+          } else if (info.role === 'guest') {
+            taskReq = self.apos.task.getGuestReq();
           } else {
             taskReq = self.apos.task.getAnonReq();
           }
@@ -411,7 +417,23 @@ module.exports = {
       bodyParserJson: bodyParser.json({
         limit: '16mb',
         ...(self.options.bodyParser && self.options.bodyParser.json)
-      })
+      }),
+      // Supports POST that are supposed to be GET requests
+      // when the query string is too big, we convert it back to GET here.
+      convertPostToGetWithQuery(req, res, next) {
+        if (req.method === 'POST' && req.body?.__aposGetWithQuery) {
+          req.method = 'GET';
+          req.query = {
+            ...req.query,
+            ...req.body.__aposGetWithQuery
+          };
+          delete req.body;
+          const [ url ] = req.url.split('?');
+          req.url = `${url}?${qs.stringify(req.query)}`;
+        }
+
+        return next();
+      }
     };
   },
 
@@ -608,11 +630,11 @@ module.exports = {
         });
       },
 
-      // See the `csrf` middleware which checks for exceptions first. This method
-      // performs the actual CSRF check, without checking for exceptions
-      // first. It does check for and allow safe methods. This
-      // method is useful when you have made your own determination
-      // that this URL should be subject to CSRF.
+      // See the `csrf` middleware which checks for exceptions first. This
+      // method performs the actual CSRF check, without checking for exceptions
+      // first. It does check for and allow safe methods. This method is useful
+      // when you have made your own determination that this URL should be
+      // subject to CSRF.
 
       csrfWithoutExceptions(req, res, next) {
         // OPTIONS request cannot set a cookie, so manipulating the session here
@@ -729,10 +751,10 @@ module.exports = {
         }
       },
 
-      // Locate modules with middleware and routes and add them to the list. By default
-      // the order is: middleware of this module, then middleware of all other
-      // modules in module registration order, then routes of all modules in
-      // module registration order.
+      // Locate modules with middleware and routes and add them to the list. By
+      // default the order is: middleware of this module, then middleware of all
+      // other modules in module registration order, then routes of all modules
+      // in module registration order.
       //
       // The "before" keyword can be used to change this
       async findModuleMiddlewareAndRoutes() {

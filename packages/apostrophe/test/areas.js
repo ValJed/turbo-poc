@@ -6,15 +6,7 @@ describe('Areas', function() {
 
   this.timeout(t.timeout);
 
-  after(async function() {
-    return t.destroy(apos);
-  });
-
-  /// ///
-  // EXISTENCE
-  /// ///
-
-  it('should initialize', async function() {
+  before(async function() {
     apos = await t.create({
       root: module,
 
@@ -74,6 +66,14 @@ describe('Areas', function() {
     // so override that in order to get apostrophe to
     // listen normally and not try to run a task. -Tom
     apos.argv._ = [];
+  });
+
+  after(async function() {
+    return t.destroy(apos);
+  });
+
+  beforeEach(function() {
+    apos.area.widgetOperations = [];
   });
 
   it('can get widgets from groups', function() {
@@ -268,14 +268,11 @@ describe('Areas', function() {
       assert(doc.main._rendered);
       assert(!doc.main.items);
 
-      // TODO the approach in this test can't cover array or object area rendering
-      // properly without a further overhaul (not a new problem).
-      // if (doc.moreAreas) {
-      //   doc.moreAreas.forEach(area => {
-      //     assert(area.someWidgets._rendered);
-      //     assert(!area.someWidgets.items);
-      //   });
-      // }
+      // TODO the approach in this test can't cover array or object area
+      // rendering properly without a further overhaul (not a new problem). if
+      // (doc.moreAreas) { doc.moreAreas.forEach(area => {
+      // assert(area.someWidgets._rendered); assert(!area.someWidgets.items);
+      // }); }
     });
 
     assert.equal(areaDocs[0].main._rendered, firstRendered);

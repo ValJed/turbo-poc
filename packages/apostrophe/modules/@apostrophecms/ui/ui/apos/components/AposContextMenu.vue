@@ -46,6 +46,7 @@
           :menu="menu"
           :active-item="activeItem"
           :is-open="isOpen"
+          :has-tip="hasTip"
           @item-clicked="menuItemClicked"
           @set-arrow="setArrow"
         >
@@ -158,6 +159,10 @@ const props = defineProps({
   centerTipEl: {
     type: Object,
     default: null
+  },
+  hasTip: {
+    type: Boolean,
+    default: true
   }
 });
 
@@ -200,6 +205,7 @@ const menuResizeObserver = new ResizeObserver((entries) => {
 
 defineExpose({
   hide,
+  show,
   setDropdownPosition
 });
 
@@ -287,7 +293,9 @@ async function hide(e) {
   if (!isOpen.value) {
     return;
   }
-  menuResizeObserver.unobserve(dropdownContent.value);
+  if (dropdownContent.value) {
+    menuResizeObserver.unobserve(dropdownContent.value);
+  }
   isOpen.value = false;
   await nextTick();
   emit('close', e);
@@ -343,8 +351,8 @@ function setArrow(el) {
   arrowEl.value = el;
 }
 
-function menuItemClicked(name) {
-  emit('item-clicked', name);
+function menuItemClicked(item) {
+  emit('item-clicked', item);
   hide();
 }
 
@@ -353,19 +361,35 @@ async function setDropdownPosition() {
     return;
   }
   const centerArrowEl = iconToCenterTo.value || dropdown.value;
+  // The proper ordering as recommended by Floating UI
+  // https://floating-ui.com/docs/flip#combining-with-shift
+  const middleware = [ offset(mOffset) ];
+  const flipMiddleware = flip({
+    // Always fallback to bottom when there is no placement
+    // that fits the viewport.
+    fallbackPlacements: [ 'bottom' ],
+    // Pass detectOverflow options to modify
+    // the clipping boundaries with our Admin UI top bar/Modal header
+    // in mind
+    padding: {
+      top: (window.apos.adminBar?.height || 0) + 10
+    }
+  });
+  const shiftMiddleware = shift({ padding: 5 });
+  if (props.menuPlacement.includes('-')) {
+    middleware.push(flipMiddleware, shiftMiddleware);
+  } else {
+    middleware.push(shiftMiddleware, flipMiddleware);
+  }
+  middleware.push(arrow({
+    element: arrowEl.value,
+    padding: 5
+  }));
   const {
     x, y, middlewareData, placement: dropdownPlacement
   } = await computePosition(centerArrowEl, dropdownContent.value, {
     placement: props.menuPlacement,
-    middleware: [
-      offset(mOffset),
-      shift({ padding: 5 }),
-      flip(),
-      arrow({
-        element: arrowEl.value,
-        padding: 5
-      })
-    ]
+    middleware
   });
 
   placement.value = dropdownPlacement;
@@ -373,6 +397,10 @@ async function setDropdownPosition() {
     left: `${x}px`,
     top: `${y}px`
   };
+
+  if (!arrowEl.value) {
+    return;
+  }
 
   const { x: arrowX, y: arrowY } = middlewareData.arrow;
   Object.assign(arrowEl.value.style, {
@@ -452,8 +480,8 @@ function handleKeyboard(event) {
 }
 
 .apos-context-menu__popup--tb-padded .apos-context-menu__pane{
-  padding-top: 20px;
-  padding-bottom: 20px;
+  padding-top: $spacing-double;
+  padding-bottom: $spacing-double;
 }
 
 .apos-context-menu__popup {
@@ -473,9 +501,10 @@ function handleKeyboard(event) {
   @include type-base;
 
   & {
-    padding: 20px;
-    border: 1px solid var(--a-base-8);
-    border-radius: var(--a-border-radius);
+    padding: $spacing-half 0;
+    border: 1px solid var(--a-base-9);
+    border-radius: var(--a-border-radius-large);
+    font-size: var(--a-type-menu);
     box-shadow: var(--a-box-shadow);
     background-color: var(--a-background-primary);
   }
@@ -492,9 +521,8 @@ function handleKeyboard(event) {
     display: inline-block;
     list-style-type: none;
     width: max-content;
-    margin: none;
     margin-block: 0;
-    padding: 10px 0;
+    margin: $spacing-half 0;
   }
 }
 </style>

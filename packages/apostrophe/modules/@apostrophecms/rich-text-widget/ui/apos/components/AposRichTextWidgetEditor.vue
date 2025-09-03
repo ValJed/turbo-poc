@@ -193,7 +193,7 @@ export default {
       default: false
     }
   },
-  emits: [ 'update' ],
+  emits: [ 'update', 'suppressWidgetControls' ],
   data() {
     return {
       editor: null,
@@ -209,6 +209,8 @@ export default {
       showPlaceholder: null,
       activeInsertMenuComponent: false,
       suppressInsertMenu: false,
+      suppressWidgetControls: false,
+      hasSelection: false,
       insertMenuKey: null,
       openedPopover: false
     };
@@ -226,7 +228,7 @@ export default {
     },
     tableTippyOptions() {
       return {
-        zIndex: 999,
+        zIndex: 2001,
         placement: 'top',
         offset: [ 0, 35 ],
         moveTransition: 'transform 0s ease-out',
@@ -283,9 +285,12 @@ export default {
       // no configuration needed. If:
       // 1. The table is configured for the toolbar but not insert, move it
       // 2. remove the table tool from the toolbar
-      if (activeOptions.toolbar.some(tool => tool === 'table')) {
-        if (!activeOptions.insert.some(tool => tool === 'table')) {
-          activeOptions.insert.push('table');
+      if (activeOptions.toolbar?.some(tool => tool === 'table')) {
+        if (!activeOptions.insert?.some(tool => tool === 'table')) {
+          activeOptions.insert = [
+            ...(activeOptions.insert || []),
+            'table'
+          ];
         }
         activeOptions.toolbar = activeOptions.toolbar.filter(tool => tool !== 'table');
       }
@@ -330,24 +335,27 @@ export default {
     insertMenu() {
       return this.moduleOptions.insertMenu;
     },
-    isVisuallyEmpty () {
+    isVisuallyEmpty() {
       const div = document.createElement('div');
-      let hasTable = false;
-      div.innerHTML = this.modelValue.content;
+      let hasSomeContent = false;
+      div.innerHTML = this.modelValue.content?.trim();
       if (this.editor) {
         const editorJSON = this.editor.getJSON();
-        hasTable = !!editorJSON?.content.filter(c => c.type === 'table').length;
+        // We are interested in different than the default `p` wrappers
+        // when the innerHTML is empty.
+        hasSomeContent = !!editorJSON?.content
+          .filter(c => ![ 'paragraph' ].includes(c.type)).length;
       }
-      return (!div.textContent && !hasTable);
+      return (!div.textContent && !hasSomeContent);
     },
     editorModifiers () {
       const classes = [];
       if (this.isVisuallyEmpty) {
         classes.push('apos-is-visually-empty');
       }
-      // Per Stu's original logic we have to deal with an edge case when the page is
-      // first loading by displaying the initial placeholder then too (showPlaceholder
-      // state not yet computed)
+      // Per Stu's original logic we have to deal with an edge case when the
+      // page is first loading by displaying the initial placeholder then too
+      // (showPlaceholder state not yet computed)
       const hasPlaceholder = this.placeholderText && this.moduleOptions.placeholder;
       if (
         (hasPlaceholder || this.insert.length) &&
@@ -371,8 +379,14 @@ export default {
     }
   },
   watch: {
+    suppressWidgetControls(newVal) {
+      if (newVal) {
+        this.$emit('suppressWidgetControls');
+      }
+    },
     isFocused(newVal) {
       if (!newVal) {
+        this.suppressWidgetControls = false;
         if (this.pending) {
           this.emitWidgetUpdate();
         }
@@ -429,6 +443,8 @@ export default {
       .filter(Boolean)
       .concat(this.aposTiptapExtensions());
 
+    this.ensureExtensionsPriority(extensions);
+
     this.editor = new Editor({
       content: this.initialContent,
       autofocus: this.autofocus,
@@ -454,6 +470,13 @@ export default {
         this.isFocused = false;
         this.$nextTick(() => {
           this.showPlaceholder = true;
+        });
+      },
+      onSelectionUpdate: ({ editor }) => {
+        this.$nextTick(() => {
+          if (!editor.view.state.selection.empty) {
+            this.suppressWidgetControls = true;
+          }
         });
       }
     });
@@ -493,6 +516,7 @@ export default {
       } else {
         this.suppressInsertMenu = false;
       }
+      this.suppressWidgetControls = true;
     },
     doSuppressInsertMenu() {
       this.suppressInsertMenu = true;
@@ -664,6 +688,21 @@ export default {
           types: this.tiptapTypes
         }));
     },
+    // Find the `defaultNode` extension and ensure it's registered first.
+    // Any other priority related logic should be handled here.
+    // Why sorting is important?
+    // See https://github.com/ProseMirror/prosemirror/issues/1534#issuecomment-2984216986
+    // related with list item issues and `defaultNode`.
+    // NOTE: this handler mutates the input array for performance reasons.
+    ensureExtensionsPriority(extensions) {
+      const defaultNodeIndex = extensions.findIndex(ext => ext.name === 'defaultNode');
+      if (defaultNodeIndex > 0) {
+        const defaultNode = extensions.splice(defaultNodeIndex, 1)[0];
+        extensions.unshift(defaultNode);
+      }
+
+      return extensions;
+    },
     showFloatingMenu({
       state, oldState
     }) {
@@ -752,6 +791,11 @@ function traverseNextNode(node) {
 
   $z-index-button-background: 1;
   $z-index-button-foreground: 2;
+
+  .bubble-menu {
+    width: max-content;
+    max-width: 95vw;
+  }
 
   .apos-rich-text-toolbar.editor-menu-bubble {
     z-index: $z-index-manager-toolbar;

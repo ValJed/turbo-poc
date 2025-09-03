@@ -14,9 +14,11 @@
     :index="index"
     :widget-options="options.widgets"
     :options="options"
+    :field-id="fieldId"
     :max-reached="maxReached"
     :disabled="isDisabled"
     :menu-id="menuId"
+    :open="open"
     @add="$emit('add', $event);"
   />
 </template>
@@ -56,6 +58,10 @@ export default {
         return {};
       }
     },
+    fieldId: {
+      type: String,
+      required: true
+    },
     tabbable: {
       type: Boolean,
       default: false
@@ -63,6 +69,9 @@ export default {
     menuId: {
       type: String,
       default: null
+    },
+    open: {
+      type: Boolean
     }
   },
   emits: [ 'add' ],
@@ -88,7 +97,7 @@ export default {
   methods: {
     async openExpandedMenu(index) {
       const data = await apos.modal.execute('AposAreaExpandedMenu', {
-        field: this.field,
+        fieldId: this.fieldId,
         options: this.options,
         index
       });

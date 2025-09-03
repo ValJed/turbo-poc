@@ -97,13 +97,6 @@ export default {
       this.dragoverCount--;
       this.dragover = this.dragoverCount > 0;
     },
-    dragHandler (event) {
-      if (this.disabled) {
-        return;
-      }
-      event.preventDefault();
-      this.dragging = true;
-    },
     async uploadMedia (event) {
       try {
         apos.bus.$emit('busy', {
@@ -120,6 +113,7 @@ export default {
         this.$emit('upload-started');
         const files = event.dataTransfer ? event.dataTransfer.files : event.target.files;
         const fileCount = files.length;
+        let errorCount = 0;
 
         const emptyDoc = await apos.http.post(this.action, {
           busy: true,
@@ -141,6 +135,7 @@ export default {
               images.push(img);
             }
           } catch (e) {
+            errorCount++;
             const msg = e.body && e.body.message ? e.body.message : this.$t('apostrophe:uploadError');
             await apos.notify(msg, {
               type: 'danger',
@@ -148,17 +143,32 @@ export default {
               dismiss: true,
               localize: false
             });
-            return;
           }
         }
 
-        await apos.notify('apostrophe:uploaded', {
-          type: 'success',
-          dismiss: true,
-          interpolate: {
-            count: fileCount
-          }
-        });
+        if (errorCount > 0) {
+          await apos.notify('apostrophe:uploadedError', {
+            type: 'danger',
+            icon: 'alert-circle-icon',
+            // Let it stick, we have too many server side notifications now
+            // (1 per failure).
+            dismiss: false,
+            interpolate: {
+              count: errorCount
+            }
+          });
+        }
+
+        const successCount = fileCount - errorCount;
+        if (successCount > 0) {
+          await apos.notify('apostrophe:uploaded', {
+            type: 'success',
+            dismiss: true,
+            interpolate: {
+              count: successCount
+            }
+          });
+        }
 
         // When complete, refresh the image grid, with the new images at top.
         this.$emit('upload-complete', images);
@@ -217,8 +227,9 @@ export default {
         }
       }
     },
-    // Trigger the file input click (via `this.create`) when pressing Enter or Space
-    // of the drag&drop area, which is made focusable unlike the input file.
+    // Trigger the file input click (via `this.create`) when pressing Enter or
+    // Space of the drag&drop area, which is made focusable unlike the input
+    // file.
     onUploadDragAndDropKeyDown(e) {
       const isEnterPressed = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter';
       const isSpaceBarPressed = e.keyCode === 32 || e.code === 'Space';

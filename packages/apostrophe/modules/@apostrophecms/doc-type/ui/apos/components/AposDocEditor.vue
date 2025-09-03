@@ -182,6 +182,14 @@ export default {
     modalData: {
       type: Object,
       required: true
+    },
+    // Optional. If present, properties of this object
+    // override the defaults for the corresponding fields.
+    // Currently supported only for new instances, not
+    // existing or copied instances
+    values: {
+      type: Object,
+      default: null
     }
   },
   emits: [ 'modal-result' ],
@@ -283,7 +291,8 @@ export default {
         // Allow initial submission
         return false;
       }
-      // Block re-submission of an unmodified draft (we already checked modified)
+      // Block re-submission of an unmodified draft (we already checked
+      // modified)
       return true;
     },
     moduleOptions() {
@@ -472,6 +481,9 @@ export default {
       if (newInstance && newInstance.type !== this.docType) {
         this.docType = newInstance.type;
       }
+      if (this.values) {
+        Object.assign(newInstance, this.values);
+      }
       this.docFields.data = newInstance;
       const slugField = this.schema.find(field => field.name === 'slug');
       if (slugField) {
@@ -538,7 +550,8 @@ export default {
           }
           this.original = klona(docData);
           this.docFields.data = docData;
-          // TODO: Is this block even useful since published is fetched after loadDoc?
+          // TODO: Is this block even useful since published is fetched after
+          // loadDoc?
           if (this.published) {
             this.changed = detectDocChange(
               this.schema,
@@ -624,7 +637,6 @@ export default {
 
       let doc;
       try {
-        await this.postprocess();
         doc = await requestMethod(route, {
           busy: true,
           body,
@@ -644,13 +656,12 @@ export default {
         if (this.isLockedError(e)) {
           await this.showLockedError(e);
           this.modal.showModal = false;
-          return;
         } else {
           await this.handleSaveError(e, {
             fallback: 'An error occurred saving the document.'
           });
-          return;
         }
+        return;
       }
       if (!keepOpen) {
         this.$emit('modal-result', doc);
@@ -658,6 +669,12 @@ export default {
       }
       if (draft) {
         await apos.notify('apostrophe:draftSaved', {
+          type: 'success',
+          dismiss: true,
+          icon: 'file-document-icon'
+        });
+      } else if (!andPublish && this.moduleOptions.autopublish) {
+        await apos.notify('apostrophe:changesPublished', {
           type: 'success',
           dismiss: true,
           icon: 'file-document-icon'
@@ -729,8 +746,9 @@ export default {
     },
     computeSaveMenu () {
       // Powers the dropdown Save menu
-      // all actions expected to be methods of this component Needs to be manually
-      // computed because this.saveLabel doesn't stay reactive when part of an object
+      // all actions expected to be methods of this component Needs to be
+      // manually computed because this.saveLabel doesn't stay reactive when
+      // part of an object
       const typeLabel = this.$t(this.moduleOptions
         ? this.moduleOptions.label
         : 'document');

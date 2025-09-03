@@ -37,7 +37,8 @@
 // `passport`
 //
 // Apostrophe's instance of the [passport](https://npmjs.org/package/passport) npm module.
-// You may access this object if you need to implement additional passport "strategies."
+// You may access this object if you need to implement additional passport
+// "strategies."
 
 const Passport = require('passport').Passport;
 const LocalStrategy = require('passport-local');
@@ -68,7 +69,9 @@ module.exports = {
       allowedAttempts: 3,
       perMinutes: 1,
       lockoutMinutes: 1
-    }
+    },
+    minimumWhoamiFields: [ '_id', 'username', 'title', 'email' ],
+    whoamiFields: []
   },
   async init(self) {
     self.passport = new Passport();
@@ -89,7 +92,7 @@ module.exports = {
           // rather than ever being stored literally
           self.apos.user.addSecret('passwordReset');
         },
-        async checkForUser () {
+        async checkForUser() {
           await self.checkForUserAndAlert();
         }
       }
@@ -145,7 +148,7 @@ module.exports = {
           }
           if (req.session) {
             const destroySession = () => {
-              return require('util').promisify(function(callback) {
+              return require('util').promisify(function (callback) {
                 // Be thorough, nothing in the session potentially
                 // related to the login should survive logout
                 return req.session.destroy(callback);
@@ -153,10 +156,9 @@ module.exports = {
             };
             const cookie = req.session.cookie;
             await destroySession();
-            // Session cookie expiration isn't automatic with `req.session.destroy`.
-            // Fix that to reduce challenges for those attempting to implement custom
-            // caching strategies at the edge
-            // https://github.com/expressjs/session/issues/241
+            // Session cookie expiration isn't automatic with
+            // `req.session.destroy`. Fix that to reduce challenges for those
+            // attempting to implement custom caching strategies at the edge https://github.com/expressjs/session/issues/241
             const expireCookie = new expressSession.Cookie(cookie);
             expireCookie.expires = new Date(0);
             const name = self.apos.modules['@apostrophecms/express'].sessionOptions.name;
@@ -166,10 +168,10 @@ module.exports = {
             req.res.cookie(`${self.apos.shortName}.${loggedInCookieName}`, 'false');
           }
         },
-        // invokes the `props(req, user)` function for the requirement specified by
-        // `body.name`. Invoked before displaying each `afterPasswordVerified`
-        // requirement. The return value of the function, which should
-        // be an object, is delivered as the API response
+        // invokes the `props(req, user)` function for the requirement
+        // specified by `body.name`. Invoked before displaying each
+        // `afterPasswordVerified` requirement. The return value of the
+        // function, which should be an object, is delivered as the API response
         async requirementProps(req) {
           const { user } = await self.findIncompleteTokenAndUser(
             req,
@@ -256,6 +258,9 @@ module.exports = {
         },
         async context(req) {
           return self.getContext(req);
+        },
+        async whoami(req) {
+          return self.getWhoami(req);
         },
         ...self.isPasswordResetEnabled() && {
           async resetRequest(req) {
@@ -351,6 +356,9 @@ module.exports = {
         // it should be accessed via POST because the result
         // may differ by individual user session and should not
         // be cached
+        async whoami(req) {
+          return self.getWhoami(req);
+        },
         async context(req) {
           return self.getContext(req);
         },
@@ -378,7 +386,8 @@ module.exports = {
       // props for beforeSubmit requirements
       async getContext(req) {
         const aposPackage = require('../../../package.json');
-        // For performance beforeSubmit requirement props all happen together here
+        // For performance beforeSubmit requirement props all happen together
+        // here
         const requirementProps = {};
         for (const [ name, requirement ] of Object.entries(self.requirements)) {
           if ((requirement.phase !== 'afterPasswordVerified') && requirement.props) {
@@ -399,6 +408,29 @@ module.exports = {
           version: aposPackage.version || '3',
           requirementProps
         };
+      },
+
+      // Implements the whoami route, which provides
+      // information about the user that is currently
+      // logged in
+      async getWhoami(req) {
+        if (!req.user) {
+          throw self.apos.error('notfound');
+        }
+
+        const fields = new Set([
+          ...self.options.minimumWhoamiFields,
+          ...self.options.whoamiFields
+        ]);
+        const user = {};
+
+        for (const field of fields) {
+          if (req.user[field] !== undefined) {
+            user[field] = req.user[field];
+          }
+        }
+
+        return user;
       },
 
       // return the loginUrl option
@@ -484,13 +516,13 @@ module.exports = {
       // the username or the email address (both are unique).
       //
       // If the user's credentials are invalid, `false` is returned after a
-      // 1000ms delay to discourage abuse. If another type of error occurs, it is thrown
-      // normally.
+      // 1000ms delay to discourage abuse. If another type of error occurs, it
+      // is thrown normally.
       //
       // If the user's login SUCCEEDS, the return value is
       // the `user` object.
-      // `attempts`,  `ip` and `requestId` are optional, sent for only logging needs.
-      // They won't be available with passport.
+      // `attempts`,  `ip` and `requestId` are optional, sent for only logging
+      // needs. They won't be available with passport.
 
       async verifyLogin(username, password, attempts = 0, ip, requestId) {
         const req = self.apos.task.getReq();
@@ -699,10 +731,10 @@ module.exports = {
         }
       },
 
-      // Implementation detail of the login route and the requirementProps mechanism for
-      // custom login requirements. Given the string `token`, returns
-      // `{ token, user }`. Throws an exception if the token is not found.
-      // `token` is sanitized before passing to mongodb.
+      // Implementation detail of the login route and the requirementProps
+      // mechanism for custom login requirements. Given the string `token`,
+      // returns `{ token, user }`. Throws an exception if the token is not
+      // found. `token` is sanitized before passing to mongodb.
       async findIncompleteTokenAndUser(req, token) {
         token = await self.bearerTokens.findOne({
           _id: self.apos.launder.string(token),
@@ -745,8 +777,8 @@ module.exports = {
         }
       },
 
-      // Implementation detail of the login route. Log in the user, or if there are
-      // `requirements` that require password verification occur first,
+      // Implementation detail of the login route. Log in the user, or if there
+      // are `requirements` that require password verification occur first,
       // return an incomplete token.
       async initialLogin(req) {
         const username = self.apos.launder.string(req.body.username);
@@ -784,7 +816,7 @@ module.exports = {
             self.apos.structuredLog.getRequestId(req)
           );
           if (!user) {
-          // For security reasons we may not tell the user which case applies
+            // For security reasons we may not tell the user which case applies
             throw self.apos.error('invalid', req.t('apostrophe:loginPageBadCredentials'));
           }
 
@@ -796,8 +828,8 @@ module.exports = {
               _id: token,
               userId: user._id,
               requirementsToVerify,
-              // Default lifetime of 1 hour is generous to permit situations like
-              // installing a TOTP app for the first time
+              // Default lifetime of 1 hour is generous to permit situations
+              // like installing a TOTP app for the first time
               expires: new Date(
                 new Date().getTime() + (self.options.incompleteLifetime || 60 * 60 * 1000)
               )
@@ -826,7 +858,7 @@ module.exports = {
               userId: user._id,
               expires: new Date(
                 new Date().getTime() +
-                  (self.options.bearerTokens.lifetime || (86400 * 7 * 2)) * 1000
+                (self.options.bearerTokens.lifetime || (86400 * 7 * 2)) * 1000
               )
             });
 
@@ -857,21 +889,22 @@ module.exports = {
         };
       },
 
-      // Awaitable wrapper for req.login. An implementation detail of the login route
+      // Awaitable wrapper for req.login. An implementation detail of the login
+      // route
       async passportLogin(req, user) {
         const cookieName = `${self.apos.shortName}.${loggedInCookieName}`;
         if (req.cookies[cookieName] !== 'true') {
           req.res.cookie(cookieName, 'true');
         }
         const passportLogin = (user) => {
-          return require('util').promisify(function(user, callback) {
+          return require('util').promisify(function (user, callback) {
             return req.login(user, callback);
           })(user);
         };
         await passportLogin(user);
       },
 
-      async addLoginAttempt (
+      async addLoginAttempt(
         username,
         attempts,
         namespace = loginAttemptsNamespace
@@ -897,7 +930,7 @@ module.exports = {
         }
       },
 
-      async checkLoginAttempts (username, namespace = loginAttemptsNamespace) {
+      async checkLoginAttempts(username, namespace = loginAttemptsNamespace) {
         const cachedAttempts = await self.apos.cache.get(namespace, username);
         const { allowedAttempts } = self.options.throttle;
 
@@ -921,7 +954,7 @@ module.exports = {
         };
       },
 
-      async clearLoginAttempts (username, namespace = loginAttemptsNamespace) {
+      async clearLoginAttempts(username, namespace = loginAttemptsNamespace) {
         await self.apos.cache.delete(namespace, username);
       },
 
@@ -1002,7 +1035,8 @@ module.exports = {
         before: '@apostrophecms/i18n',
         middleware: (() => {
           // Wrap the passport middleware so that if the apikey or bearer token
-          // middleware already supplied req.user, that wins (explicit wins over implicit)
+          // middleware already supplied req.user, that wins (explicit wins
+          // over implicit)
           const passportSession = self.passport.session();
           return (req, res, next) => req.user ? next() : passportSession(req, res, next);
         })()
@@ -1010,7 +1044,8 @@ module.exports = {
       removeUserForDraftSharing: {
         before: '@apostrophecms/i18n',
         middleware(req, res, next) {
-          // Remove user to hide the admin UI, in order to simulate a logged-out page view
+          // Remove user to hide the admin UI, in order to simulate a
+          // logged-out page view
           if (self.isShareDraftRequest(req)) {
             delete req.user;
           }

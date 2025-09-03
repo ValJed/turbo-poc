@@ -1,7 +1,8 @@
 // Implements template rendering via Nunjucks. **You should use the
 // `self.render` method of *your own* module**,
-// which exist courtesy of [@apostrophecms/module](../@apostrophecms/module/index.html)
-// and invoke methods of this module more conveniently for you.
+// which exist courtesy of
+// [@apostrophecms/module](../@apostrophecms/module/index.html) and invoke
+// methods of this module more conveniently for you.
 //
 // You may have occasion to call `self.apos.template.safe` when
 // implementing a helper that returns a value that should not be
@@ -33,6 +34,7 @@ const Promise = require('bluebird');
 const path = require('path');
 const { stripIndent } = require('common-tags');
 const { SemanticAttributes } = require('@opentelemetry/semantic-conventions');
+const voidElements = require('void-elements');
 
 module.exports = {
   options: { alias: 'template' },
@@ -49,9 +51,11 @@ module.exports = {
       async inject(req, data) {
         const key = `${data.end}-${data.where}`;
         const components = self.getInjectedComponents(key, data);
+        const html = data.when ? '' : self.injectNodes(req, key);
 
         return {
-          components
+          components,
+          html
         };
       }
     };
@@ -66,12 +70,10 @@ module.exports = {
     };
 
     self.envs = {};
-
     self.filters = {};
-
     self.nunjucks = self.options.language || require('nunjucks');
-
     self.insertions = {};
+    self.runtimeNodes = {};
 
   },
   handlers(self) {
@@ -169,10 +171,10 @@ module.exports = {
         return new self.nunjucks.runtime.SafeString(s);
       },
 
-      // Escape any HTML markup in the given string and return a new Nunjucks safe string,
-      // unless it is already marked as safe by Nunjucks. If it is nullish treat it as an
-      // empty string. If it is not a string convert it with its `toString` method before
-      // escaping.
+      // Escape any HTML markup in the given string and return a new Nunjucks
+      // safe string, unless it is already marked as safe by Nunjucks. If it is
+      // nullish treat it as an empty string. If it is not a string convert it
+      // with its `toString` method before escaping.
 
       escapeIfNeeded(s) {
         if (!(s instanceof self.nunjucks.runtime.SafeString)) {
@@ -244,7 +246,8 @@ module.exports = {
         // , null, '  ');
         data = data.replace(/<!--/g, '<\\!--');
         data = data.replace(/<\/script>/gi, '<\\/script>');
-        // unicode line separator and paragraph separator break JavaScript parsing
+        // unicode line separator and paragraph separator break JavaScript
+        // parsing
         data = data.replace(/\u2028/g, '\\u2028');
         data = data.replace(/\u2029/g, '\\u2029');
         return data;
@@ -313,8 +316,8 @@ module.exports = {
       },
 
       // Just the external front-compatible parts of `getRenderArgs` that
-      // go into `args.data` for Nunjucks, e.g. merging `req.data` and `data`, adding
-      // `req.user` as `user`, etc.
+      // go into `args.data` for Nunjucks, e.g. merging `req.data` and `data`,
+      // adding `req.user` as `user`, etc.
 
       getRenderDataArgs(req, data, module) {
         const merged = {};
@@ -674,10 +677,10 @@ module.exports = {
 
           const decorate = req.query.aposRefresh !== '1';
 
-          // data.url will be the original requested page URL, for use in building
-          // relative links, adding or removing query parameters, etc. If this is a
-          // refresh request, we remove that so that frontend templates don't build
-          // URLs that also refresh
+          // data.url will be the original requested page URL, for use in
+          // building relative links, adding or removing query parameters, etc.
+          // If this is a refresh request, we remove that so that frontend
+          // templates don't build URLs that also refresh
 
           const args = {
             outerLayout: decorate ? '@apostrophecms/template:outerLayout.html' : '@apostrophecms/template:refreshLayout.html',
@@ -811,21 +814,22 @@ module.exports = {
 
       // Add a body class or classes to be emitted when the page is rendered.
       // This information is attached to `req.data`, where the string
-      // `req.data.aposBodyClasses` is built up. The default `outerLayoutBase.html`
-      // template outputs that string. The string passed may contain space-separated
-      // class names.
+      // `req.data.aposBodyClasses` is built up. The default
+      // `outerLayoutBase.html` template outputs that string. The string passed
+      // may contain space-separated class names.
 
       addBodyClass(req, bodyClass) {
         req.data.aposBodyClasses = (req.data.aposBodyClasses ? req.data.aposBodyClasses + ' ' : '') + bodyClass;
       },
 
-      // Add a body attribute to be emitted when the page is rendered. This information
-      // is attached to `req.data`, where `req.data.aposBodyDataAttributes` is built up
-      // using `name` as the attribute name which is automatically prepended with "data-"
-      // and the optional `value` argument.
+      // Add a body attribute to be emitted when the page is rendered. This
+      // information is attached to `req.data`, where
+      // `req.data.aposBodyDataAttributes` is built up using `name` as the
+      // attribute name which is automatically prepended with "data-" and the
+      // optional `value` argument.
       //
-      // Alternatively the second argument may be an object, in which case each property
-      // becomes a data attribute, with the `data-` prefix.
+      // Alternatively the second argument may be an object, in which case each
+      // property becomes a data attribute, with the `data-` prefix.
       //
       // The default `outerLayoutBase.html` template outputs
       // the data attributes on the `body` tag.
@@ -848,32 +852,32 @@ module.exports = {
           if (_.isEmpty(key)) {
             return;
           }
-          // Single quotes are used to avoid unreadably massive data attributes as
-          // double quotes are so common when the value is JSON
+          // Single quotes are used to avoid unreadably massive data attributes
+          // as double quotes are so common when the value is JSON
           req.data.aposBodyDataAttributes = (req.data.aposBodyDataAttributes ? req.data.aposBodyDataAttributes + ' ' : ' ') + ('data-' + (!_.isUndefined(value) && value.toString().length > 0 ? self.apos.util.escapeHtml(key) + (`='${self.apos.util.escapeHtml(value, { single: true })}'`) : self.apos.util.escapeHtml(key)));
         });
       },
 
       // Use this method to provide an async component name that will
-      // be invoked at the point in the page layout identified by the string `location`.
-      // Standard locations are `head`, `body`, and `main`.
+      // be invoked at the point in the page layout identified by the string
+      // `location`. Standard locations are `head`, `body`, and `main`.
       //
       //  The page layout, template or outerLayout must contain a corresponding
-      // `{% component '@apostrophecms/template:inject', 'location', 'prepend' %}` call,
-      // with the same location, to actually insert the content.
+      // `{% component '@apostrophecms/template:inject', 'location', 'prepend'
+      // %}` call, with the same location, to actually insert the content.
       //
-      // The output of components added with `prepend` is prepended just after the
-      // opening tag of an element, such as `<head>`. Use `append` to insert material
-      // before the closing tag.
+      // The output of components added with `prepend` is prepended just after
+      // the opening tag of an element, such as `<head>`. Use `append` to insert
+      // material before the closing tag.
       //
       // This method is most often used when writing a module that adds new UI
       // to Apostrophe and allows you to add that markup without forcing
       // developers to customize their layout for your module to work.
       //
-      // `conditions` argument can be an object with keys `when` and `bundler` to specify
-      // when the component should be injected. `bundler` is the alias of the currently
-      // registered asset external build module. For now only
-      // `when: hmr` and `bundler: xxx` are supported.
+      // `conditions` argument can be an object with keys `when` and `bundler`
+      // to specify when the component should be injected. `bundler` is the
+      // alias of the currently registered asset external build module. For now
+      // only `when: hmr` and `bundler: xxx` are supported.
       //
       // A new single argument signature is also supported, where the first
       // argument is an object. See `insert()` for more details.
@@ -910,18 +914,18 @@ module.exports = {
       // `apos.template.prepended('location')` call, with the same location, to
       // actually insert the content.
       //
-      // The output of components added with `append` is appended just before the
-      // closing tag of an element, such as `</head>`. Use `prepend` to insert material
-      // after the opening tag.
+      // The output of components added with `append` is appended just before
+      // the closing tag of an element, such as `</head>`. Use `prepend` to
+      // insert material after the opening tag.
       //
       // This method is most often used when writing a module that adds new UI
       // to Apostrophe and allows you to add that markup without forcing
       // developers to customize their layout for your module to work.
       //
-      // `conditions` argument can be an object with keys `when` and `bundler` to specify
-      // when the component should be injected. `bundler` is the alias of the currently
-      // registered asset external build module. For now only `when: hmr` and
-      // `bundler: xxx` are supported.
+      // `conditions` argument can be an object with keys `when` and `bundler`
+      // to specify when the component should be injected. `bundler` is the
+      // alias of the currently registered asset external build module. For now
+      // only `when: hmr` and `bundler: xxx` are supported.
       //
       // A new single argument signature is also supported, where the first and
       // only argument is an object.
@@ -951,24 +955,22 @@ module.exports = {
         return self.insert('append', location, componentName, conditions);
       },
 
-      // Implementation detail of `apos.template.prepend` and `apos.template.append`.
-      // `conditions` is an object
-      // (optional) that may have `when` and `bundler` keys. See below for more info.
-      // All conditions are evaluated
-      // at a runtime, when the component is injected.
+      // Implementation detail of `apos.template.prepend` and
+      // `apos.template.append`. `conditions` is an object (optional) that may
+      // have `when` and `bundler` keys. See below for more info. All conditions
+      // are evaluated at a runtime, when the component is injected.
       //
-      // If `location` is an object, the following arguments are ignored. The object
-      // should have the following keys:
-      // - `component`: the component name (e.g. 'module-name:component-name')
-      // - `where`: the location (e.g. 'head')
-      // - `when`: (optional) string or array of strings, the conditions to be met to
-      // insert the component. When an array, a logical AND is applied. One match
-      // against the injected `when` data is required. Currently supported values
-      // are `hmr`, `dev`, `prod`. See `getInjectConditionHandlers()` for more info.
-      //   The `when` value can include an argument separated by `:`.
-      //   E.g. `hmr:apos`, `hmr:public`. If the condition handler does not
-      //   support arguments, it's ignored.
-      // - `bundler`: (optional) string, the alias of the currently registered
+      // If `location` is an object, the following arguments are ignored. The
+      // object should have the following keys: - `component`: the component
+      // name (e.g. 'module-name:component-name') - `where`: the location (e.g.
+      // 'head') - `when`: (optional) string or array of strings, the conditions
+      // to be met to insert the component. When an array, a logical AND is
+      // applied. One match against the injected `when` data is required.
+      // Currently supported values are `hmr`, `dev`, `prod`. See
+      // `getInjectConditionHandlers()` for more info. The `when` value can
+      // include an argument separated by `:`. E.g. `hmr:apos`, `hmr:public`. If
+      // the condition handler does not support arguments, it's ignored. -
+      // `bundler`: (optional) string, the alias of the currently registered
       // asset external build module. The bundler condition is not parth of the
       // actual inject data. It's evaluated just on the registration data.
 
@@ -989,8 +991,9 @@ module.exports = {
         });
       },
 
-      // Accepts the position and component key (e.g. `prepend-head`) and returns
-      // an array of components that should be injected at that position.
+      // Accepts the position and component key (e.g. `prepend-head`) and
+      // returns an array of components that should be injected at that
+      // position.
       getInjectedComponents(key, data) {
         const components = [];
 
@@ -1048,12 +1051,11 @@ module.exports = {
         return components;
       },
 
-      // Simple conditions handling for `when` injects. It can be extended to support
-      // custom conditions in the future - registered by modules similar to
-      // `helpers`.
-      // Every condition function receives an argument if available and the nunjucks
-      // data object. For example `when: hmr:apos` will call `hmr('apos', data)`.
-      // The function should return a boolean.
+      // Simple conditions handling for `when` injects. It can be extended to
+      // support custom conditions in the future - registered by modules similar
+      // to `helpers`. Every condition function receives an argument if
+      // available and the nunjucks data object. For example `when: hmr:apos`
+      // will call `hmr('apos', data)`. The function should return a boolean.
       getInjectConditionHandlers() {
         return {
           hmr(kind) {
@@ -1070,6 +1072,141 @@ module.exports = {
             return self.apos.asset.isProductionMode();
           }
         };
+      },
+
+      prependNodes(location, moduleName, method) {
+        self.registerRuntimeNodes('prepend', location, moduleName, method);
+      },
+
+      appendNodes(location, moduleName, method) {
+        self.registerRuntimeNodes('append', location, moduleName, method);
+      },
+
+      registerRuntimeNodes(end, location, moduleName, method) {
+        if (typeof method !== 'string') {
+          throw new Error(
+            `Do not pass a function to "apos.template.${end}Nodes()". ` +
+            'Pass a string with the name of the method to call on the module, ' +
+            'e.g. "myMethod"'
+          );
+        }
+        if (typeof moduleName !== 'string') {
+          throw new Error(
+            `Invalid "moduleName" detected in "apos.template.${end}Nodes()". ` +
+            'Pass a string with the name of the module, e.g. "some-module"'
+          );
+        }
+
+        if (typeof self.apos.modules[moduleName] === 'undefined') {
+          throw new Error(
+            `Invalid module "${moduleName}"detected in "apos.template.${end}Nodes()". ` +
+            'Make sure the module is registered in your "app.js" file.'
+          );
+        }
+
+        if (!self.apos.modules[moduleName][method]) {
+          throw new Error(
+            `Invalid method "${method}" detected in "apos.template.${end}Nodes()". ` +
+            `Make sure the module "${moduleName}" has a method named "${method}".`
+          );
+        }
+
+        const key = end + '-' + location;
+        self.runtimeNodes[key] ||= [];
+        self.runtimeNodes[key].push({
+          moduleName,
+          method
+        });
+      },
+
+      // Accepts array of node objects and returns a string - HTML
+      // representation of the nodes. Example nodes:
+      // [
+      //   {
+      //     name: 'div',
+      //     attrs: { class: 'my-class' },
+      //     body: [
+      //       {
+      //         text: 'Hello world'
+      //       }
+      //     ]
+      //   },
+      //   {
+      //     name: 'link',
+      //     attrs: { href: '/some/path', rel: 'stylesheet' }
+      //   }
+      // ]
+      // Node object SHOULD have either `name`, `text`, `raw` or `comment` property.
+      // A node with `name` can have `attrs` (array of element attributes)
+      // and `body` (array of child nodes, recursion).
+      // `text` nodes are rendered as text (no HTML tags), the value is always a string.
+      // `comment` nodes are rendered as HTML comments, the value is always a string.
+      // `raw` nodes are rendered as is, no escaping, the value is always a string.
+      renderNodes(nodes) {
+        if (!Array.isArray(nodes)) {
+          self.logError(
+            'render-nodes',
+            'Invalid nodes array passed to apos.template.renderNodes()'
+          );
+          return '';
+        }
+        return nodes.map(node => {
+          if (node.text) {
+            return self.apos.util.escapeHtml(node.text);
+          }
+          if (node.comment) {
+            return `\n<!-- ${self.apos.util.escapeHtml(node.comment)} -->\n`;
+          }
+          if (node.raw) {
+            return node.raw;
+          }
+          if (node.name) {
+            const name = self.apos.util.escapeHtml(node.name);
+            const attrs = Object.entries(node.attrs || {})
+              .map(([ key, value ]) => {
+                if (value === false || value === null || value === undefined) {
+                  return '';
+                }
+                if (value === true) {
+                  return ` ${self.apos.util.escapeHtml(key)}`;
+                }
+                return ` ${self.apos.util.escapeHtml(key)}="${self.apos.util.escapeHtml(value)}"`;
+              })
+              .join('')
+              .trimEnd();
+
+            if (!node.body && voidElements[name]) {
+              return `<${name}${attrs} />`;
+            }
+
+            const body = (
+              node.body ? self.renderNodes(node.body) : ''
+            ).trim();
+
+            return `<${name}${attrs}>${body}</${name}>`;
+          }
+          self.logError(
+            'render-nodes',
+            'Invalid node object passed to apos.template.renderNodes()',
+            { node }
+          );
+          return '';
+        })
+          .join('')
+          .trim();
+      },
+
+      injectNodes(req, locationKey) {
+        const nodes = self.runtimeNodes[locationKey] || [];
+        if (!nodes.length) {
+          return '';
+        }
+        const output = [];
+        for (const { moduleName, method } of nodes) {
+          const handler = self.apos.modules[moduleName][method];
+          output.push(self.renderNodes(handler(req)));
+        }
+        return output.join('\n');
       },
 
       async annotateDataForExternalFront(req, template, data, moduleName) {
@@ -1099,6 +1236,12 @@ module.exports = {
           };
           data.bundleMarkup.js.push(...Array.from(modulePreload));
         }
+
+        // `node` injections
+        data.prependHead = self.injectNodes(req, 'prepend-head');
+        data.appendHead = self.injectNodes(req, 'append-head');
+        data.prependBody = self.injectNodes(req, 'prepend-body');
+        data.appendBody = self.injectNodes(req, 'append-body');
 
         return data;
       },
@@ -1147,7 +1290,8 @@ module.exports = {
       annotateAreaForExternalFront(field, area) {
         area.field = field;
         area.options = field.options;
-        // Really widget configurations, but the method name is already set in stone
+        // Really widget configurations, but the method name is already set in
+        // stone
         const widgets = self.apos.area.getWidgets(area.options);
         area.choices = Object.entries(widgets).map(([ name, options ]) => {
           const manager = self.apos.area.widgetManagers[name];

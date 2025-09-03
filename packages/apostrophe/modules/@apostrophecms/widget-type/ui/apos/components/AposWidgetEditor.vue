@@ -72,6 +72,7 @@ import { detectDocChange } from 'Modules/@apostrophecms/schema/lib/detectChange'
 import { createId } from '@paralleldrive/cuid2';
 import { klona } from 'klona';
 import newInstance from 'apostrophe/modules/@apostrophecms/schema/lib/newInstance.js';
+import { debounceAsync } from 'Modules/@apostrophecms/ui/utils';
 
 export default {
   name: 'AposWidgetEditor',
@@ -117,6 +118,10 @@ export default {
       type: Object,
       default: null
       // if present, has "area", "index" and "create" properties
+    },
+    areaFieldId: {
+      type: String,
+      default: null
     }
   },
   emits: [ 'modal-result' ],
@@ -134,10 +139,11 @@ export default {
         active: false,
         type: 'slide',
         width: moduleOptions.width,
-        origin: this.preview ? guessOrigin(this.preview.area) : moduleOptions.origin,
+        origin: guessOrigin(this.preview?.area, moduleOptions),
         showModal: false
       },
-      triggerValidation: false
+      triggerValidation: false,
+      lastPreview: null
     };
   },
   computed: {
@@ -185,6 +191,7 @@ export default {
     ];
   },
   unmounted() {
+    this.areaDebounceUpdate.cancel?.();
     apos.area.widgetOptions = apos.area.widgetOptions.slice(1);
   },
   created() {
@@ -203,6 +210,22 @@ export default {
     if (!this.id) {
       this.newId = createId();
     }
+    this.areaDebounceUpdate = this.preview
+      ? debounceAsync(
+        (now) => {
+          this.lastPreview = now;
+          return this.preview?.area
+            .update(this.getPreviewWidgetObject(), { autosave: false })
+            .catch(e => {
+              if (e.name !== 'debounce.canceled') {
+                // eslint-disable-next-line no-console
+                console.error('Error updating preview', e);
+              }
+            });
+        },
+        250
+      )
+      : () => {};
     this.initPreview();
   },
   methods: {
@@ -235,41 +258,30 @@ export default {
         return;
       }
       const now = Date.now();
-      const body = () => {
-        this.lastPreview = now;
-        this.preview.area.update(this.getPreviewWidgetObject(), { autosave: false });
-      };
-      if (this.updatePreviewTimeout) {
-        clearTimeout(this.updatePreviewTimeout);
-      }
       if (!this.lastPreview || (now - this.lastPreview > 250)) {
-        // If we're still dragging the slider around, refresh every once in a while,
-        // no matter what
-        body();
+        // If we're still dragging the slider around, refresh every once in a
+        // while, no matter what
+        this.areaDebounceUpdate.skipDelay(now);
       } else {
-        this.updatePreviewTimeout = setTimeout(body, 250);
+        this.areaDebounceUpdate(now);
       }
     },
     removePreview() {
       if (!this.preview) {
         return;
       }
-      if (this.updatePreviewTimeout) {
-        clearTimeout(this.updatePreviewTimeout);
-      }
       if (this.preview.create) {
         this.preview.area.remove(this.getPreviewWidgetIndex(), { autosave: false });
       } else if (!this.saving) {
-        this.preview.area.update(this.previewSnapshot, { autosave: false });
+        this.preview.area.update(this.previewSnapshot, {
+          autosave: false,
+          reverting: true
+        });
       }
     },
     async save() {
-      if (this.updatePreviewTimeout) {
-        clearTimeout(this.updatePreviewTimeout);
-      }
       this.triggerValidation = true;
       this.$nextTick(async () => {
-        const widget = this.getWidgetObject();
         if (this.errorCount > 0) {
           this.triggerValidation = false;
           await apos.notify('apostrophe:resolveErrorsBeforeSaving', {
@@ -279,19 +291,39 @@ export default {
           });
           this.focusNextError();
           return;
+        } else {
+          try {
+            await this.serverValidate();
+          } catch (e) {
+            this.triggerValidation = false;
+            await this.handleSaveError(e, {
+              fallback: 'A validation error occurred while saving the widget.'
+            });
+            return;
+          }
         }
-        try {
-          await this.postprocess();
-        } catch (e) {
-          await this.handleSaveError(e, {
-            fallback: 'An error occurred saving the widget.'
-          });
-          return;
-        }
+        const widget = this.getWidgetObject();
         this.saving = true;
         this.$emit('modal-result', widget);
         this.modal.showModal = false;
       });
+    },
+    async serverValidate() {
+      await apos.http.post(
+          `${apos.area.action}/validate-widget`,
+          {
+            busy: true,
+            qs: {
+              aposEdit: '1',
+              aposMode: 'draft'
+            },
+            body: {
+              widget: this.docFields.data,
+              areaFieldId: this.areaFieldId,
+              type: this.type
+            }
+          }
+      );
     },
     getWidgetObject(props = {}) {
       const widget = klona(this.docFields.data);
@@ -333,12 +365,19 @@ export default {
   }
 };
 
-function guessOrigin(area) {
-  // When we are in live preview mode, use the bounding box of the area to figure out which
-  // side of the screen will least obscure the widget
+function guessOrigin(area, { isExplicitOrigin, origin }) {
+  // No preview available OR custom origin.
+  // Respect the origin configuration if it's not the default
+  if (!area || isExplicitOrigin) {
+    return origin;
+  }
+  // When we are in live preview mode, use the bounding box of the area to
+  // figure out which side of the screen will least obscure the widget
   const rect = area.$el.getBoundingClientRect();
   const cx = (rect.right - rect.left) / 2 + rect.left;
-  if (cx >= (window.innerWidth / 2)) {
+  // Favor the right hand side slightly because rich text
+  // subwidgets in centered areas are more intuitive that way
+  if (cx >= (window.innerWidth * 0.55)) {
     return 'left';
   } else {
     return 'right';

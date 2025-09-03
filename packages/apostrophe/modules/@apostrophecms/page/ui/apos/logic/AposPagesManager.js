@@ -266,12 +266,11 @@ export default {
     },
     // Recursively update the tree and the flat list with the changes returned
     // by the server. The `changes` array contains a list of documents with
-    // only the fields that have changed. Update both draft and published documents.
-    // The current document changes comes only for draft and contains the new depth,
-    // updatedAt, and order. We request a fresh published document for the current
-    // document to update it.
-    // The rest of the changes are only the new order values for both
-    // draft and published documents.
+    // only the fields that have changed. Update both draft and published
+    // documents. The current document changes comes only for draft and contains
+    // the new depth, updatedAt, and order. We request a fresh published
+    // document for the current document to update it. The rest of the changes
+    // are only the new order values for both draft and published documents.
     async updateTree(updated) {
       const { __changed, ...draft } = updated;
       const changes = __changed.map(change => {
@@ -283,7 +282,8 @@ export default {
         }
         return change;
       });
-      // Retrieve the published document version, generate a change object for it.
+      // Retrieve the published document version, generate a change object for
+      // it.
       const published = await apos.http.get(
         `${this.moduleOptions.action}/${draft._id.replace(':draft', ':published')}`,
         { busy: false }
@@ -390,12 +390,14 @@ export default {
           page: this.currentPage
         });
 
-        // If editor is looking at the archive tree, trim the normal page tree response
+        // If editor is looking at the archive tree, trim the normal page tree
+        // response
         if (this.filterValues.archived) {
           pageTree = pageTree._children.find(page => page.slug === '/archive');
           pageTree = pageTree._children;
         }
 
+        pageTree = filterValidPages(pageTree);
         formatPage(pageTree);
 
         if (!pageTree.length && pageTree.length !== 0) {
@@ -414,12 +416,37 @@ export default {
           page.forEach(formatPage);
           return;
         }
+        if (!page._id) {
+          return;
+        }
 
         self.pagesFlat.push(klona(page));
 
         if (Array.isArray(page._children)) {
           page._children.forEach(formatPage);
         }
+      }
+
+      function filterValidPages(page) {
+        if (Array.isArray(page)) {
+          return page.map(filterValidPages).filter(p => p._id);
+        }
+        const result = {};
+        if (!self.moduleOptions.validPageTypes.includes(page.type)) {
+          return result;
+        }
+
+        Object.assign(result, page);
+
+        result._children = [];
+        for (const child of page._children || []) {
+          const filteredChild = filterValidPages(child);
+          if (filteredChild._id) {
+            result._children.push(filteredChild);
+          }
+        }
+
+        return result;
       }
     },
     getAllPagesTotal () {

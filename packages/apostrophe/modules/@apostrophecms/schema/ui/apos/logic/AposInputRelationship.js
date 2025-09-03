@@ -1,6 +1,7 @@
 import { klona } from 'klona';
 import AposInputMixin from 'Modules/@apostrophecms/schema/mixins/AposInputMixin';
 import newInstance from 'apostrophe/modules/@apostrophecms/schema/lib/newInstance.js';
+import { getPostprocessedRelationship } from 'Modules/@apostrophecms/piece-type/lib/postprocessRelationships.js';
 
 export default {
   name: 'AposInputRelationship',
@@ -19,7 +20,8 @@ export default {
         .map(doc => [ doc._id, doc._fields ])
     );
 
-    const suggestionFields = this.field.suggestionFields || apos.modules[this.field.withType]?.relationshipSuggestionFields;
+    const suggestionFields = this.field.suggestionFields ||
+      apos.modules[this.field.withType]?.relationshipSuggestionFields;
 
     return {
       searchTerm: '',
@@ -88,7 +90,7 @@ export default {
         customFields: [ 'help' ]
       };
     },
-    chooserComponent () {
+    chooserComponent() {
       return apos.modules[this.field.withType].components.managerModal;
     },
     disableUnpublished() {
@@ -106,8 +108,11 @@ export default {
 
       return widgetOptions.minSize || [];
     },
-    duplicate () {
+    duplicate() {
       return this.modelValue?.duplicate ? 'apos-input--error' : null;
+    },
+    widgetOptions() {
+      return apos.area.widgetOptions[0];
     }
   },
   watch: {
@@ -151,8 +156,12 @@ export default {
 
       this.disabled = !!this.limitReached;
     },
-    updateSelected(items) {
-      this.next = items;
+    async updateSelected(items) {
+      this.next = await getPostprocessedRelationship(
+        items,
+        this.field,
+        this.widgetOptions
+      );
     },
     async search(qs) {
       const action = apos.modules[this.field.withType].action;
@@ -240,9 +249,11 @@ export default {
           }
           break;
         case 'Enter':
-          this.updateSelected([ ...this.next, this.searchList[this.searchFocusIndex] ]);
-          this.handleFocusOut();
-          this.input();
+          if (this.searchFocusIndex !== null && this.searchList[this.searchFocusIndex]) {
+            this.updateSelected([ ...this.next, this.searchList[this.searchFocusIndex] ]);
+            this.handleFocusOut();
+            this.input();
+          }
           break;
         case 'Escape':
           this.handleFocusOut();
@@ -266,6 +277,9 @@ export default {
         this.updateSelected(result);
       }
     },
+    getDefault() {
+      return newInstance(this.field.schema);
+    },
     async editRelationship (item) {
       const editor = this.field.editor || 'AposRelationshipEditor';
 
@@ -276,26 +290,24 @@ export default {
         'model-value': item._fields
       });
 
-      if (result) {
-        const index = this.next.findIndex(_item => _item._id === item._id);
+      if (!result) {
+        return;
+      }
 
-        this.next = this.next.map((item, i) => {
-          return i === index
-            ? {
-              ...item,
-              _fields: result
-            }
-            : item;
-        });
-      }
-    },
-    getEditRelationshipLabel () {
-      if (this.field.editor === 'AposImageRelationshipEditor') {
-        return 'apostrophe:editImageAdjustments';
-      }
-    },
-    getDefault() {
-      return newInstance(this.field.schema);
+      const updatedItems = this.next.map((rel) => {
+        return rel._id === item._id
+          ? {
+            ...item,
+            _fields: result
+          }
+          : rel;
+      });
+
+      this.next = await getPostprocessedRelationship(
+        updatedItems,
+        this.field,
+        this.widgetOptions
+      );
     }
   }
 };

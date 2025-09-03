@@ -45,14 +45,18 @@ module.exports = {
       };
       return fields;
     }, {});
+    const orTypes = linkWithType.map(type => ({
+      linkTo: type
+    }));
     linkWithTypeFields.updateTitle = {
       label: 'apostrophe:updateTitle',
       type: 'boolean',
+      // Optional.
+      // Can be Link and/or Image
+      extensions: [ 'Link' ],
       def: true,
       if: {
-        $or: linkWithType.map(type => ({
-          linkTo: type
-        }))
+        $or: orTypes
       }
     };
 
@@ -68,10 +72,27 @@ module.exports = {
         ...linkWithTypeFields,
         href: {
           label: 'apostrophe:url',
+          help: 'apostrophe:linkHrefHelp',
           type: 'string',
           required: true,
           if: {
             linkTo: '_url'
+          }
+        },
+        hrefTitle: {
+          label: 'apostrophe:linkTitle',
+          help: 'apostrophe:linkTitleUrlHelp',
+          type: 'string',
+          if: {
+            linkTo: '_url'
+          }
+        },
+        title: {
+          label: 'apostrophe:linkTitle',
+          help: 'apostrophe:linkTitleRelHelp',
+          type: 'string',
+          if: {
+            $or: orTypes
           }
         },
         target: {
@@ -83,7 +104,15 @@ module.exports = {
               label: 'apostrophe:openLinkInNewTab',
               value: '_blank'
             }
-          ]
+          ],
+          if: {
+            $or: linkWithType.map(type => ({
+              linkTo: type
+            }))
+              .concat([ {
+                linkTo: '_url'
+              } ])
+          }
         }
       }
     };
@@ -119,20 +148,35 @@ module.exports = {
     minimumDefaultOptions: {
       toolbar: [
         'styles',
+        '|',
         'bold',
         'italic',
         'strike',
+        'underline',
+        'subscript',
+        'superscript',
+        'blockquote',
+        '|',
+        'alignLeft',
+        'alignCenter',
+        'alignRight',
+        'image',
+        'horizontalRule',
         'link',
         'anchor',
         'bulletList',
         'orderedList',
-        'blockquote'
+        'color'
       ],
       styles: [
         // you may also use a `class` property with these
         {
           tag: 'p',
           label: 'apostrophe:richTextParagraph'
+        },
+        {
+          tag: 'h1',
+          label: 'apostrophe:richTextH1'
         },
         {
           tag: 'h2',
@@ -145,8 +189,23 @@ module.exports = {
         {
           tag: 'h4',
           label: 'apostrophe:richTextH4'
+        },
+        {
+          tag: 'h5',
+          label: 'apostrophe:richTextH5'
+        },
+        {
+          tag: 'h6',
+          label: 'apostrophe:richTextH6'
         }
+      ],
+      insert: [
+        'image',
+        'table',
+        'importTable',
+        'horizontalRule'
       ]
+
     },
     defaultOptions: {},
     components: {
@@ -312,8 +371,8 @@ module.exports = {
       table: {
         icon: 'table-icon',
         label: 'apostrophe:table',
-        action: 'insertTable',
-        description: 'apostrophe:tableDescription'
+        description: 'apostrophe:tableDescription',
+        action: 'insertTable'
       },
       image: {
         icon: 'image-icon',
@@ -324,6 +383,7 @@ module.exports = {
       horizontalRule: {
         icon: 'minus-icon',
         label: 'apostrophe:richTextHorizontalRule',
+        description: 'apostrophe:richTextHorizontalRuleDescription',
         action: 'setHorizontalRule'
       },
       importTable: {
@@ -405,7 +465,8 @@ module.exports = {
   apiRoutes,
   methods(self) {
     return {
-      // Return just the rich text of the widget, which may be undefined or null if it has not yet been edited
+      // Return just the rich text of the widget, which may be undefined or
+      // null if it has not yet been edited
 
       getRichText(widget) {
         return widget.content;
@@ -538,6 +599,8 @@ module.exports = {
               'href',
               'id',
               'name',
+              'title',
+              'rel',
               ...self.linkSchema
                 .filter(field => field.htmlAttribute)
                 .map(field => field.htmlAttribute)
@@ -597,6 +660,17 @@ module.exports = {
               attributes: [ 'class' ]
             },
             {
+              tag: 'a',
+              attributes: [
+                'href',
+                'name',
+                'title',
+                'rel',
+                ...self.linkSchema
+                  .filter(field => field.htmlAttribute)
+                  .map(field => field.htmlAttribute) ]
+            },
+            {
               tag: 'img',
               attributes: [ 'src', 'alt' ]
             }
@@ -613,7 +687,9 @@ module.exports = {
               for (const attribute of entry.attributes) {
                 allowedAttributes[entry.tag] = allowedAttributes[entry.tag] || [];
                 allowedAttributes[entry.tag].push(attribute);
-                allowedAttributes[entry.tag] = [ ...new Set(allowedAttributes[entry.tag]) ];
+                allowedAttributes[entry.tag] = [
+                  ...new Set(allowedAttributes[entry.tag])
+                ];
               }
             }
           }
@@ -739,8 +815,8 @@ module.exports = {
         return allowedClasses;
       },
 
-      // Returns a combined array of toolbar and insert menu items from the given
-      // set of rich text widget options
+      // Returns a combined array of toolbar and insert menu items from the
+      // given set of rich text widget options
       combinedItems(options) {
         return [ ...(options.toolbar || []), ...(options.insert || []) ];
       },
@@ -761,8 +837,11 @@ module.exports = {
       },
 
       isEmpty(widget) {
-        const text = self.apos.util.htmlToPlaintext(widget.content || '');
-        return !text.trim().length;
+        const content = (widget.content || '').trim();
+        const text = self.apos.util.htmlToPlaintext(content).trim();
+        return text.length === 0 &&
+          content.includes('<table') === false &&
+          content.includes('<figure') === false;
       },
 
       sanitizeHtml(html, options) {
@@ -780,9 +859,9 @@ module.exports = {
           if (!self.validateAnchor(anchor)) {
             return;
           }
-          // tiptap will apply data-anchor to every tag involved in the selection
-          // at any depth. For ids and anchors this doesn't really make sense.
-          // Save the id to the first, rootmost tag involved
+          // tiptap will apply data-anchor to every tag involved in the
+          // selection at any depth. For ids and anchors this doesn't really
+          // make sense. Save the id to the first, rootmost tag involved
           if (!seen.has(anchor)) {
             $el.attr('id', anchor);
             seen.add(anchor);
@@ -834,7 +913,9 @@ module.exports = {
             const href = content.indexOf(' href="', left);
             const close = content.indexOf('"', href + 7);
             if ((left !== -1) && (href !== -1) && (close !== -1)) {
-              content = content.substring(0, href + 6) + doc._url + content.substring(close + 1);
+              content = content.substring(0, href + 6) +
+                doc._url +
+                content.substring(close + 1);
             } else {
               // So we don't get stuck in an infinite loop
               break;
@@ -845,7 +926,9 @@ module.exports = {
             const right = content.indexOf('>', left);
             const nextLeft = content.indexOf('<', right);
             if ((right !== -1) && (nextLeft !== -1)) {
-              content = content.substring(0, right + 1) + self.apos.util.escapeHtml(doc.title) + content.substring(nextLeft);
+              content = content.substring(0, right + 1) +
+                self.apos.util.escapeHtml(doc.title) +
+                content.substring(nextLeft);
             }
           }
         }
@@ -871,12 +954,37 @@ module.exports = {
             const left = content.lastIndexOf('<', i);
             const src = content.indexOf(' src="', left);
             const close = content.indexOf('"', src + 6);
-            if ((left !== -1) && (src !== -1) && (close !== -1)) {
-              content = content.substring(0, src + 5) + doc.attachment._urls[self.apos.modules['@apostrophecms/image'].getLargestSize()] + content.substring(close + 1);
-            } else {
+
+            if (left === -1 || src === -1 || close === -1) {
               // So we don't get stuck in an infinite loop
               break;
             }
+
+            content = content.substring(0, src + 5) + '"' + doc.attachment._urls[self.apos.modules['@apostrophecms/image'].getLargestSize()] + '"' + content.substring(close + 1);
+
+            const tagEnd = content.indexOf('>', left);
+
+            if (tagEnd === -1) {
+              continue;
+            }
+
+            let imgTag = content.substring(left, tagEnd + 1);
+
+            const altAttr = ' alt="';
+            const altIndex = imgTag.indexOf(altAttr);
+
+            if (altIndex === -1) {
+              continue;
+            }
+
+            const altValueStart = altIndex + altAttr.length;
+            const altValueEnd = imgTag.indexOf('"', altValueStart);
+
+            // Replace the existing alt value in the img tag
+            imgTag = imgTag.substring(0, altValueStart) + self.apos.util.escapeHtml(doc.alt || '') + imgTag.substring(altValueEnd);
+
+            // Replace the img tag in content
+            content = content.substring(0, left) + imgTag + content.substring(tagEnd + 1);
           }
         }
         return content;
@@ -977,14 +1085,19 @@ module.exports = {
               }
               const name = matches[1];
               try {
-                await util.promisify(pipeline)(Readable.fromWeb(res.body), createWriteStream(temp));
+                await util.promisify(pipeline)(
+                  Readable.fromWeb(res.body),
+                  createWriteStream(temp)
+                );
                 const attachment = await self.apos.attachment.insert(req, {
                   name,
                   path: temp
                 });
                 const image = await self.apos.image.insert(req, {
                   title: name,
-                  attachment
+                  alt,
+                  attachment,
+                  tagsIds: input.import.imageTags || []
                 });
                 const newSrc = `${self.apos.image.action}/${image.aposDocId}/src`;
                 $image.replaceWith(
@@ -1050,9 +1163,12 @@ module.exports = {
           tiptapTextCommands: self.options.tiptapTextCommands,
           tiptapTypes: self.options.tiptapTypes,
           placeholderText: self.options.placeholder && self.options.placeholderText,
-          // Not optional in presence of an insert menu, it's not acceptable UX without it
+          // Not optional in presence of an insert menu, it's not acceptable UX
+          // without it
           placeholderTextWithInsertMenu: self.options.placeholderTextWithInsertMenu,
-          linkWithType: Array.isArray(self.options.linkWithType) ? self.options.linkWithType : [ self.options.linkWithType ],
+          linkWithType: Array.isArray(self.options.linkWithType)
+            ? self.options.linkWithType
+            : [ self.options.linkWithType ],
           linkSchema: self.linkSchema,
           imageStyles: self.options.imageStyles,
           color: self.options.color,

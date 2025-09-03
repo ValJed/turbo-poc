@@ -33,7 +33,8 @@ module.exports = (self) => {
           items = [];
         }
       } catch (e) {
-        // Always recover graciously and import something reasonable, like an empty area
+        // Always recover graciously and import something reasonable, like an
+        // empty area
         items = [];
       }
       items = await self.apos.area.sanitizeItems(req, items, field.options, options);
@@ -342,10 +343,14 @@ module.exports = (self) => {
           // Support one or many
           if (Array.isArray(value)) {
             return _.map(value, function (v) {
-              return self.apos.launder.select(v, field.choices, field.def);
+              return (typeof field.choices) === 'string'
+                ? self.apos.launder.string(v, field.def)
+                : self.apos.launder.select(v, field.choices, field.def);
             });
           } else {
-            return [ self.apos.launder.select(value, field.choices, field.def) ];
+            return (typeof field.choices) === 'string'
+              ? self.apos.launder.string(value, field.def)
+              : self.apos.launder.select(value, field.choices, field.def);
           }
         },
         choices: async function () {
@@ -397,7 +402,9 @@ module.exports = (self) => {
           // Support one or many
           if (Array.isArray(value)) {
             return _.map(value, function (v) {
-              return self.apos.launder.select(v, field.choices, null);
+              return (typeof field.choices) === 'string'
+                ? self.apos.launder.string(v, null)
+                : self.apos.launder.select(v, field.choices, null);
             });
           } else {
             value = (typeof field.choices) === 'string'
@@ -747,7 +754,7 @@ module.exports = (self) => {
     async convert(req, field, data, destination) {
       destination[field.name] = self.apos.launder.float(
         data[field.name],
-        undefined,
+        field.def,
         field.min,
         field.max
       );
@@ -1034,6 +1041,29 @@ module.exports = (self) => {
         rootConvert = true
       } = {}
     ) {
+
+      const canEdit = () => self.apos.permission.can(
+        req,
+        field.editPermission.action,
+        field.editPermission.type
+      );
+      const canView = () => self.apos.permission.can(
+        req,
+        field.viewPermission.action,
+        field.viewPermission.type
+      );
+      const can =
+        (!field.withType && !field.editPermission && !field.viewPermission) ||
+        (field.withType && self.apos.permission.can(req, 'view', field.withType)) ||
+        (field.editPermission && canEdit()) ||
+        (field.viewPermission && canView()) ||
+        false;
+
+      if (!can) {
+        // Silently leave the relationship alone
+        return;
+      }
+
       const options = {
         fetchRelationships,
         rootConvert
@@ -1042,6 +1072,7 @@ module.exports = (self) => {
       if (!manager) {
         throw Error('relationship with type ' + field.withType + ' unrecognized');
       }
+
       let input = data[field.name];
       if (input == null) {
         input = [];
@@ -1049,12 +1080,6 @@ module.exports = (self) => {
       if ((typeof input) === 'string') {
         // Handy in CSV: allows titles or _ids
         input = input.split(/\s*,\s*/);
-      }
-      if (field.min && field.min > input.length) {
-        throw self.apos.error('min', `Minimum ${field.withType} required not reached.`);
-      }
-      if (field.max && field.max < input.length) {
-        throw self.apos.error('max', `Maximum ${field.withType} required reached.`);
       }
       if (fetchRelationships === false) {
         destination[field.name] = [];
@@ -1115,48 +1140,55 @@ module.exports = (self) => {
       }
       if (!clauses.length) {
         destination[field.name] = [];
-        return;
-      }
-      const results = await manager
-        .find(req, { $or: clauses })
-        .relationships(false)
-        .toArray();
-      // Must maintain input order. Also discard things not actually found in the db
-      const actualDocs = [];
-      for (const item of input) {
-        if ((typeof item) === 'string') {
-          const result = results
-            .find(result => (result.title === item) || (result._id === item));
-          if (result) {
-            actualDocs.push(result);
-          }
-        } else if ((item && (typeof item._id === 'string'))) {
-          const result = results.find(doc => (doc._id === item._id));
-          if (result) {
-            if (field.schema) {
-              const destArray = Array.isArray(destination[field.name])
-                ? destination[field.name]
-                : [];
-              const destItem = destArray.find((doc) => doc._id === item._id);
-              result._fields = {
-                ...destItem?._fields || {}
-              };
-
-              if (item && ((typeof item._fields === 'object'))) {
-                await self.convert(
-                  req,
-                  field.schema,
-                  item._fields || {},
-                  result._fields,
-                  options
-                );
-              }
+      } else {
+        const results = await manager
+          .find(req, { $or: clauses })
+          .relationships(false)
+          .toArray();
+        // Must maintain input order. Also discard things not actually found in
+        // the db
+        const actualDocs = [];
+        for (const item of input) {
+          if ((typeof item) === 'string') {
+            const result = results
+              .find(result => (result.title === item) || (result._id === item));
+            if (result) {
+              actualDocs.push(result);
             }
-            actualDocs.push(result);
+          } else if ((item && (typeof item._id === 'string'))) {
+            const result = results.find(doc => (doc._id === item._id));
+            if (result) {
+              if (field.schema) {
+                const destArray = Array.isArray(destination[field.name])
+                  ? destination[field.name]
+                  : [];
+                const destItem = destArray.find((doc) => doc._id === item._id);
+                result._fields = {
+                  ...destItem?._fields || {}
+                };
+
+                if (item && ((typeof item._fields === 'object'))) {
+                  await self.convert(
+                    req,
+                    field.schema,
+                    item._fields || {},
+                    result._fields,
+                    options
+                  );
+                }
+              }
+              actualDocs.push(result);
+            }
           }
         }
+        destination[field.name] = actualDocs;
       }
-      destination[field.name] = actualDocs;
+      // "min" and "required" are not enforced server-side for relationships because
+      // it is always possible for the related document to be removed independently
+      // at some point. This leads to too many edge cases and knock-on effects if enforced
+      if (field.max && field.max < destination[field.name].length) {
+        throw self.apos.error('max', `Maximum ${field.withType} required reached.`);
+      }
     },
 
     relate: async function (req, field, objects, options) {
@@ -1195,8 +1227,9 @@ module.exports = (self) => {
 
             const value = query.get(field.name + suffix);
             const criteria = {};
-            // Even programmers appreciate shortcuts, so it's not enough that the
-            // sanitizer (which doesn't apply to programmatic use) accepts these
+            // Even programmers appreciate shortcuts, so it's not enough that
+            // the sanitizer (which doesn't apply to programmatic use) accepts
+            // these
             if (Array.isArray(value)) {
               criteria[field.idsStorage] = {};
               criteria[field.idsStorage][operator] = value.map(self.apos.doc.toAposDocId);
@@ -1382,8 +1415,8 @@ module.exports = (self) => {
         if (!forwardRelationship) {
           fail('reverseOf property does not match the name property of any relationship in the schema for ' + field.withType + '. Hint: you are taking advantage of a relationship already being edited in the schema for that type, "reverse" must match "name".');
         }
-        // Make sure the other relationship has any missing fields auto-supplied before
-        // trying to access them
+        // Make sure the other relationship has any missing fields
+        // auto-supplied before trying to access them
         self.validate([ forwardRelationship ], {
           type: 'doc type',
           subtype: otherModule.name

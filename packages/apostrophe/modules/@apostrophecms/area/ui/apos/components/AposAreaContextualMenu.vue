@@ -10,6 +10,8 @@
       :button="buttonOptions"
       :popover-modifiers="inContext ? ['z-index-in-context'] : []"
       :menu-id="menuId"
+      @open="buttonOpen = true"
+      @close="buttonOpen = false"
     >
       <ul class="apos-area-menu__wrapper">
         <li
@@ -70,7 +72,7 @@
                   <AposAreaMenuItem
                     :item="child"
                     :tabbable="itemIndex === active"
-                    @click="add(child)"
+                    @click="action(child)"
                     @up="switchItem(`child-${itemIndex}-${childIndex - 1}`, -1)"
                     @down="switchItem(`child-${itemIndex}-${childIndex + 1}`, 1)"
                   />
@@ -81,7 +83,7 @@
           <AposAreaMenuItem
             v-else
             :item="item"
-            @click="add(item)"
+            @click="action(item)"
             @up="switchItem(`item-${itemIndex - 1}`, -1)"
             @down="switchItem(`item-${itemIndex + 1}`, 1)"
           />
@@ -128,11 +130,18 @@ export default {
         return {};
       }
     },
+    fieldId: {
+      type: String,
+      required: true
+    },
     menuId: {
       type: String,
       default() {
         return `areaMenu-${createId()}`;
       }
+    },
+    open: {
+      type: Boolean
     }
   },
   emits: [ 'add' ],
@@ -140,7 +149,8 @@ export default {
     return {
       active: 0,
       groupIsFocused: false,
-      inContext: true
+      inContext: true,
+      buttonOpen: false
     };
   },
   computed: {
@@ -176,8 +186,28 @@ export default {
       return flag;
     },
     myMenu() {
-      const clipboard = apos.area.widgetClipboard.get();
+      // Ensures we take a fresh look at the clipboard when toggled open again.
+      // We can't just use || because shortcut evaluation will prevent the second
+      // reactive property from being evaluated.
+      let openVia = 0;
+      if (this.open) {
+        openVia++;
+      }
+      if (this.buttonOpen) {
+        openVia++;
+      }
+      if (openVia === 0) {
+        // If the menu is not open, we don't need to compute it right now
+        return [];
+      }
       const menu = [ ...this.contextMenuOptions.menu ];
+      for (const createWidgetOperation of this.moduleOptions.createWidgetOperations) {
+        menu.unshift({
+          type: 'operation',
+          ...createWidgetOperation
+        });
+      }
+      const clipboard = apos.area.widgetClipboard.get();
       if (clipboard) {
         const widget = clipboard;
         const matchingChoice = menu.find(option => option.name === widget.type);
@@ -201,15 +231,34 @@ export default {
     }
   },
   mounted() {
-    // if this area is not in-context then it is assumed in a schema's modal and we need to bump
-    // the z-index of menus above them
+    // if this area is not in-context then it is assumed in a schema's modal and
+    // we need to bump the z-index of menus above them
     this.inContext = !apos.util.closest(this.$el, '[data-apos-schema-area]');
   },
   methods: {
-    async add(item) {
-      // Potential TODO: If we find ourselves manually flipping these bits in other AposContextMenu overrides
-      // we should consider refactoring contextmenus to be able to self close when any click takes place within their el
-      // as it is often the logical experience (not always, see tag menus and filters)
+    async action(item) {
+      if (item.type === 'operation') {
+        const props = {
+          ...item.props,
+          options: this.options,
+          fieldId: this.fieldId
+        };
+        this.$refs.contextMenu.hide();
+        const widget = await apos.modal.execute(item.modal, props);
+        if (widget) {
+          // Insert the widget at the appropriate insertion point, like we normally would
+          this.$emit('add', {
+            widget,
+            index: this.index
+          });
+        }
+        return;
+      }
+      // Potential TODO: If we find ourselves manually flipping these bits in
+      // other AposContextMenu overrides we should consider refactoring
+      // contextmenus to be able to self close when any click takes place within
+      // their el as it is often the logical experience (not always, see tag
+      // menus and filters)
       this.$refs.contextMenu.hide();
       this.$emit('add', {
         ...item,

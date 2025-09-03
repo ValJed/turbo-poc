@@ -231,12 +231,19 @@
                     {{ $t('apostrophe:automaticTranslationSettings') }}
                   </span>
                 </p>
+                <p
+                  v-if="automaticTranslationDisclaimer"
+                  class="apos-wizard__translation-disclaimer"
+                >
+                  {{ automaticTranslationDisclaimer }}
+                </p>
                 <AposCheckbox
                   v-model="wizard.values.translateContent.data"
                   :field="{ name: 'translate' }"
                   :choice="{
                     value: wizard.values.translateContent.data,
-                    label: $t('apostrophe:automaticTranslationCheckbox')
+                    label: $t('apostrophe:automaticTranslationCheckbox'),
+                    htmlHelp: $t('apostrophe:automaticTranslationCheckboxHelp')
                   }"
                   data-apos-test="localizationTranslationCheck"
                 />
@@ -449,7 +456,8 @@ export default {
       translationEnabled: apos.modules['@apostrophecms/translation'].enabled,
       translationErrMsg: null,
       translationShowRetry: false,
-      translationShowLoader: false
+      translationShowLoader: false,
+      automaticTranslationDisclaimer: this.$t('apostrophe:automaticTranslationDisclaimer')
     };
   },
   computed: {
@@ -1024,11 +1032,11 @@ export default {
         // Explicitly opt out of localization for pages as related docs.
         // This is needed only in batch mode, because we don't have the
         // full doc to check for `relatedDocument` property.
-        // Without this, the "Pages" type would be shown in the UI, but filtered out
-        // on the backend. The downside: if a page type explicitly opts in
-        // for localization (`options.relatedDocument = true`),
-        // it won't be respected in batch mode. Removing the below condition
-        // is an option in the future.
+        // Without this, the "Pages" type would be shown in the UI, but
+        // filtered out on the backend. The downside: if a page type explicitly
+        // opts in for localization (`options.relatedDocument = true`), it won't
+        // be respected in batch mode. Removing the below condition is an option
+        // in the future.
         if ([ '@apostrophecms/page', '@apostrophecms/any-page-type' ].includes(type)) {
           return false;
         }
@@ -1092,9 +1100,9 @@ export default {
         }
         // Filter out doc types that opt out completely (pages should
         // never be considered "related" to other pages simply because
-        // of navigation links, the feature is meant for pieces that feel more like
-        // part of the document being localized)
-        // We also remove non localized content like users
+        // of navigation links, the feature is meant for pieces that feel more
+        // like part of the document being localized) We also remove non
+        // localized content like users
         return related.filter(doc => {
           return apos.modules[doc.type].relatedDocument !== false &&
             apos.modules[doc.type].localized !== false;
@@ -1111,7 +1119,8 @@ export default {
       this.allRelatedDocs = relatedDocs;
       this.allRelatedDocsKnown = true;
       if (this.wizard.values.relatedDocSettings.data === 'localizeNewRelated') {
-        // Find the ids that are unlocalized in at least one of the target locales
+        // Find the ids that are unlocalized in at least one of the target
+        // locales
         const unlocalizedIds = new Set();
         for (const locale of this.selectedLocales) {
           const existingIdsForLocale = (await apos.http.post(`${apos.modules['@apostrophecms/i18n'].action}/exist-in-locale`, {

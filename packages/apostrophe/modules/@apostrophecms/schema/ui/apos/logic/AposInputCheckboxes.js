@@ -1,4 +1,3 @@
-
 import AposInputMixin from 'Modules/@apostrophecms/schema/mixins/AposInputMixin';
 import AposInputChoicesMixin from 'Modules/@apostrophecms/schema/mixins/AposInputChoicesMixin';
 
@@ -6,11 +5,13 @@ export default {
   name: 'AposInputCheckboxes',
   mixins: [ AposInputMixin, AposInputChoicesMixin ],
   beforeMount () {
-    this.modelValue.data = Array.isArray(this.modelValue.data) ? this.modelValue.data : [];
+    this.modelValue.data = Array.isArray(this.modelValue.data)
+      ? this.modelValue.data
+      : [];
   },
   methods: {
     getChoiceId(uid, value) {
-      return uid + value.replace(/\s/g, '');
+      return (uid + JSON.stringify(value)).replace(/\s+/g, '');
     },
     watchValue () {
       this.error = this.modelValue.error;

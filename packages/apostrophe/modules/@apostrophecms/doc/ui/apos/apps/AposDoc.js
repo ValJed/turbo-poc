@@ -10,11 +10,14 @@ export default () => {
   // `_id` should be the `_id` of the existing document to edit; leave
   // blank to create a new document.
   //
-  // `copyOfId` is an optional `_id` of an existing document from which properties
-  // should be copied.
+  // `copyOfId` is an optional `_id` of an existing document from which
+  // properties should be copied.
   //
-  // `copyOf` is an optional, existing document from which properties should be copied.
-  // It is present for BC.
+  // `copyOf` is an optional, existing document from which properties should be
+  // copied. It is present for BC.
+  //
+  // For new documents, a `values` object may optionally be passed. Its properties
+  // override the defaults for any matching schema fields.
   //
   // On success, returns the new or updated document. If the modal is cancelled,
   // `undefined` is returned. Be sure to `await` the result.
@@ -22,7 +25,8 @@ export default () => {
     type,
     _id,
     copyOfId,
-    copyOf
+    copyOf,
+    values
   }) => {
     if (!type) {
       throw new Error('You must specify the type of document to edit.');
@@ -41,7 +45,8 @@ export default () => {
     return apos.modal.execute(modal, {
       moduleName: type,
       docId: _id,
-      copyOfId
+      copyOfId,
+      values
     });
   };
   // If you don't care about the returned value, you can emit an

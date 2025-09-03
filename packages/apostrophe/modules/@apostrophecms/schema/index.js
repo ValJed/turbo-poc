@@ -1,8 +1,8 @@
-// This module provides schemas, a flexible and fast way to create new data types
-// by specifying the fields that should make them up. Schemas power
+// This module provides schemas, a flexible and fast way to create new data
+// types by specifying the fields that should make them up. Schemas power
 // [@apostrophecms/piece-type](../@apostrophecms/piece-type/index.html),
-// [@apostrophecms/widget-type](../@apostrophecms/widget-type/index.html), custom field
-// types in page settings for
+// [@apostrophecms/widget-type](../@apostrophecms/widget-type/index.html),
+// custom field types in page settings for
 // [@apostrophecms/page-type](../@apostrophecms/page-type/index.html) and more.
 //
 // A schema is simply an array of "plain old objects."
@@ -10,9 +10,9 @@
 // and other properties.
 //
 // See the [schema guide](../../tutorials/getting-started/schema-guide.html)
-// for a complete overview and list of schema field types. The methods documented
-// here on this page are most often used when you choose to work independently with
-// schemas, such as in a custom project that requires forms.
+// for a complete overview and list of schema field types. The methods
+// documented here on this page are most often used when you choose to work
+// independently with schemas, such as in a custom project that requires forms.
 
 const _ = require('lodash');
 const { klona } = require('klona');
@@ -24,7 +24,7 @@ module.exports = {
   options: {
     alias: 'schema'
   },
-  init(self) {
+  async init(self) {
     self.fieldTypes = {};
     self.fieldsById = {};
     self.arrayManagers = {};
@@ -37,6 +37,11 @@ module.exports = {
     addFieldTypes(self);
 
     self.validatedSchemas = {};
+
+    // Universal ESM library, an async import is required.
+    const { default: checkIfCondition, isExternalCondition } = await import('../../../lib/universal/check-if-conditions.mjs');
+    self.checkIfCondition = checkIfCondition;
+    self.isExternalCondition = isExternalCondition;
   },
 
   methods(self) {
@@ -49,10 +54,10 @@ module.exports = {
       // Compose a schema based on addFields, removeFields, orderFields
       // and, occasionally, alterFields options. This method is great for
       // merging the schema requirements of subclasses with the schema
-      // requirements of a superclass. See the @apostrophecms/schema documentation
-      // for a thorough explanation of the use of each option. The
-      // alterFields option should be avoided if your needs can be met
-      // via another option.
+      // requirements of a superclass. See the @apostrophecms/schema
+      // documentation for a thorough explanation of the use of each option. The
+      // alterFields option should be avoided if your needs can be met via
+      // another option.
 
       compose(options, module) {
         let schema = [];
@@ -60,7 +65,9 @@ module.exports = {
         // Useful for finding good unit test cases
         /* self.apos.util.log( */
         /*   JSON.stringify( */
-        /*     _.pick(options, 'addFields', 'removeFields', 'arrangeFields'), */
+        /**
+         * _.pick(options, 'addFields', 'removeFields', 'arrangeFields'),
+         */
         /*     null, */
         /*     '  ' */
         /*   ) */
@@ -70,7 +77,8 @@ module.exports = {
           // loop over our addFields
           _.each(options.addFields, function (field) {
             let i;
-            // remove it from the schema if we've already added it, last one wins
+            // remove it from the schema if we've already added it, last one
+            // wins
             for (i = 0; i < schema.length; i++) {
               if (schema[i].name === field.name) {
                 schema.splice(i, 1);
@@ -117,7 +125,8 @@ module.exports = {
             let f = _.find(schema, { name: field });
 
             if (!f) {
-              // May have already been migrated due to subclasses re-grouping fields
+              // May have already been migrated due to subclasses re-grouping
+              // fields
               f = _.find(newSchema, { name: field });
             }
 
@@ -138,7 +147,8 @@ module.exports = {
 
               newSchema.push(f);
 
-              // remove the field from the old schema, if that is where we got it from
+              // remove the field from the old schema, if that is where we got
+              // it from
               fIndex = _.findIndex(schema, { name: field });
               if (fIndex !== -1) {
                 schema.splice(fIndex, 1);
@@ -256,7 +266,8 @@ module.exports = {
       },
 
       // Recursively set moduleName property of the field and any subfields,
-      // as might be found in array or object fields. `module` is an actual module
+      // as might be found in array or object fields. `module` is an actual
+      // module
       setModuleName(field, module) {
         field.moduleName = field.moduleName || (module && module.__meta.name);
         if ((field.type === 'array') || (field.type === 'object')) {
@@ -352,7 +363,8 @@ module.exports = {
           // Don't modify the original schema which may be in use elsewhere
           groups = _.cloneDeep(schema);
 
-          // loop over each group and remove fields from them that aren't in this subset
+          // loop over each group and remove fields from them that aren't in
+          // this subset
           _.each(groups, function (group) {
             group.fields = _.filter(group.fields, function (field) {
               return _.includes(fields, field.name);
@@ -422,27 +434,29 @@ module.exports = {
         });
       },
 
-      // Wrapper around isEqual method to get modified fields between two documents
-      // instead of just getting a boolean, it will return an array of the modified fields
+      // Wrapper around isEqual method to get modified fields between two
+      // documents instead of just getting a boolean, it will return an array of
+      // the modified fields
 
       getChanges(req, schema, one, two) {
         return self.isEqual(req, schema, one, two, { getChanges: true });
       },
 
-      // Compare two objects and return true only if their schema fields are equal.
+      // Compare two objects and return true only if their schema fields are
+      // equal.
       //
-      // Note that for relationship fields this comparison is based on the idsStorage
-      // and fieldsStorage, which are updated at the time a document is saved to the
-      // database, so it will not work on a document not yet inserted or updated
-      // unless `prepareForStorage` is used.
+      // Note that for relationship fields this comparison is based on the
+      // idsStorage and fieldsStorage, which are updated at the time a document
+      // is saved to the database, so it will not work on a document not yet
+      // inserted or updated unless `prepareForStorage` is used.
       //
       // This method is invoked by the doc module to compare draft and published
-      // documents and set the modified property of the draft, just before updating the
-      // published version.
+      // documents and set the modified property of the draft, just before
+      // updating the published version.
       //
-      // When passing the option `getChange: true` it'll return an array of changed fields
-      // in this case the method won't short circuit by directly returning false
-      // when finding a changed field
+      // When passing the option `getChange: true` it'll return an array of
+      // changed fields in this case the method won't short circuit by directly
+      // returning false when finding a changed field
 
       isEqual(req, schema, one, two, options = {}) {
         const changedFields = [];
@@ -491,84 +505,61 @@ module.exports = {
         });
       },
 
-      async evaluateCondition(req, field, clause, destination, conditionalFields) {
-        for (const [ key, val ] of Object.entries(clause)) {
-          const destinationKey = _.get(destination, key);
+      async evaluateCondition(
+        req, field, clause, destination, conditionalFields,
+        followingValues = {}
+      ) {
+        const allValues = {
+          ...followingValues,
+          ...destination
+        };
 
-          if (key === '$or') {
-            const results = await Promise.all(
-              val.map(clause => self.evaluateCondition(
-                req,
-                field,
-                clause,
-                destination,
-                conditionalFields)
-              )
-            );
-            const testResults = _.isPlainObject(results?.[0])
-              ? results.some(({ value }) => value)
-              : results.some((value) => value);
-            if (!testResults) {
+        // 1. Evaluate all conditions without the externals.
+        const savedExternalConditions = [];
+        const result = self.checkIfCondition(
+          allValues,
+          clause,
+          (propName, conditionValue, docValue) => {
+            if (conditionalFields?.[propName] === false) {
               return false;
             }
-            continue;
-          } else if (val.$ne) {
-            if (val.$ne === destinationKey) {
-              return false;
+            if (self.isExternalCondition(propName)) {
+              savedExternalConditions.push({
+                name: propName,
+                value: conditionValue
+              });
             }
-            continue;
+            // Non-boolean return values are ignored
           }
+        );
 
-          // Handle external conditions:
-          //  - `if: { 'methodName()': true }`
-          //  - `if: { 'moduleName:methodName()': 'expected value' }`
-          // Checking if key ends with a closing parenthesis here to throw
-          // later if any argument is passed.
-          if (key.endsWith(')')) {
-            let externalConditionResult;
-
-            try {
-              externalConditionResult = await self.evaluateMethod(
-                req,
-                key,
-                field.name,
-                field.moduleName,
-                destination._id
-              );
-            } catch (error) {
-              throw self.apos.error('invalid', error.message);
-            }
-
-            if (externalConditionResult !== val) {
-              return false;
-            };
-
-            // Stop there, this is an external condition thus
-            // does not need to be checked against doc fields.
-            continue;
-          }
-
-          // test with Object.prototype for the case val.min === 0
-          if (Object.hasOwn(val, 'min') || Object.hasOwn(val, 'max')) {
-            if (destinationKey < val.min) {
-              return false;
-            }
-            if (destinationKey > val.max) {
-              return false;
-            }
-            continue;
-          }
-
-          if (conditionalFields?.[key] === false) {
-            return false;
-          }
-
-          if (destinationKey !== val) {
-            return false;
-          }
+        // 2. If the conditions evaluate to false or no external conditionss, stop.
+        if (!result || savedExternalConditions.length === 0) {
+          return result;
         }
 
-        return true;
+        // 3. Otherwise, evaluate the external conditions.
+        // Handle external conditions:
+        //  - `if: { 'methodName()': true }`
+        //  - `if: { 'moduleName:methodName()': 'expected value' }`
+        const promises = savedExternalConditions.map(({ name }) => {
+          return self.evaluateMethod(
+            req,
+            name,
+            field.name,
+            field.moduleName,
+            destination._id
+          );
+        });
+
+        try {
+          const externalResults = await Promise.all(promises);
+          return externalResults.every((externalResult, index) => {
+            return externalResult === savedExternalConditions[index].value;
+          });
+        } catch (error) {
+          throw self.apos.error('invalid', error.message);
+        }
       },
 
       async isFieldRequired(req, field, destination) {
@@ -583,17 +574,18 @@ module.exports = {
       // Most field types may be converted as plaintext or in the
       // format used for Apostrophe schema forms, which in most cases
       // is identical to that in which they will be stored in the database.
-      // In Apostrophe 3.x, field converters automatically determine whether they
-      // are being given plaintext or form data.
+      // In Apostrophe 3.x, field converters automatically determine whether
+      // they are being given plaintext or form data.
       //
       // If the submission cannot be converted due to an error that can't be
       // sanitized, this method throws an exception consisting of an array
-      // of objects with `path` and `error` properties. `path` is the field name,
-      // or a dot-separated path to the field name if the error was in a nested
-      // `array` or `object` schema field, and `error` is the error code which
-      // may  be a short string such as `required` or `min` that can be used to
-      // set error class names, etc. If the error is not a string, it is a
-      // database error etc. and should not be displayed in the browser directly.
+      // of objects with `path` and `error` properties. `path` is the field
+      // name, or a dot-separated path to the field name if the error was in a
+      // nested `array` or `object` schema field, and `error` is the error code
+      // which may  be a short string such as `required` or `min` that can be
+      // used to set error class names, etc. If the error is not a string, it is
+      // a database error etc. and should not be displayed in the browser
+      // directly.
       //
       // ancestors consists of an array of objects where each represents
       // the context object at each level of nested sanitization, excluding
@@ -690,11 +682,19 @@ module.exports = {
       },
 
       async getNonVisibleFields({
-        req, schema, destination, nonVisibleFields = new Set(), fieldPath = ''
+        req, schema, destination,
+        nonVisibleFields = new Set(), fieldPath = '',
+        parentFollowingValues = {}
       }) {
         for (const field of schema) {
           const curPath = fieldPath ? `${fieldPath}.${field.name}` : field.name;
-          const isVisible = await self.isVisible(req, schema, destination, field.name);
+          const isVisible = await self.isVisible(
+            req,
+            schema,
+            destination,
+            field.name,
+            parentFollowingValues
+          );
           if (!isVisible) {
             nonVisibleFields.add(curPath);
             continue;
@@ -702,6 +702,14 @@ module.exports = {
           if (!field.schema) {
             continue;
           }
+
+          // Get following values for the current parent before
+          // going deeper into the schema.
+          parentFollowingValues = self.getNextFollowingValues(
+            schema,
+            destination,
+            parentFollowingValues
+          );
 
           // Relationship does not support conditional fields right now
           if ([ 'array' /*, 'relationship' */].includes(field.type) && field.schema) {
@@ -711,7 +719,8 @@ module.exports = {
                 schema: field.schema,
                 destination: arrayItem,
                 nonVisibleFields,
-                fieldPath: `${curPath}.${arrayItem._id}`
+                fieldPath: `${curPath}.${arrayItem._id}`,
+                parentFollowingValues
               });
             }
           } else if (field.type === 'object') {
@@ -720,7 +729,8 @@ module.exports = {
               schema: field.schema,
               destination: destination[field.name],
               nonVisibleFields,
-              fieldPath: curPath
+              fieldPath: curPath,
+              parentFollowingValues
             });
           }
         }
@@ -742,9 +752,8 @@ module.exports = {
           const [ destId, destPath ] = error.path.includes('.')
             ? error.path.split('.')
             : [ null, error.path ];
-
           const curDestination = destId
-            ? destination.find(({ _id }) => _id === destId)
+            ? (destination?.items || destination || []).find(({ _id }) => _id === destId)
             : destination;
 
           const errorPath = destinationPath
@@ -787,8 +796,8 @@ module.exports = {
       },
 
       setDefaultToInvisibleField(destination, schema, fieldPath) {
-        // Field path might contain the ID of the object in which it is contained
-        // We just want the field name here
+        // Field path might contain the ID of the object in which it is
+        // contained We just want the field name here
         const [ _id, fieldName ] = fieldPath.includes('.')
           ? fieldPath.split('.')
           : [ null, fieldPath ];
@@ -826,9 +835,36 @@ module.exports = {
         return curSchema;
       },
 
+      // Retrieve all `following` fields from a schema (ignore sub-schema),
+      // merge it with the provided `parentFollowingValues` and apply the
+      // `<` prefix to the keys of the resulting object to increase the nesting
+      // level so that they can be passed to a sub-schema.
+      getNextFollowingValues(schema, values, parentFollowingValues = {}) {
+        const newFollowingValues = {};
+        for (const field of schema) {
+          if (!field.following) {
+            continue;
+          }
+          const following = Array.isArray(field.following)
+            ? field.following
+            : [ field.following ];
+          for (const followingField of following) {
+            // Add the parent prefix to the following field
+            newFollowingValues[`<${followingField}`] = values[followingField];
+          }
+        }
+
+        for (const [ name, value ] of Object.entries(parentFollowingValues)) {
+          newFollowingValues[`<${name}`] = value;
+        }
+
+        return newFollowingValues;
+      },
       // Determine whether the given field is visible
       // based on `if` conditions of all fields
-      async isVisible(req, schema, destination, name) {
+      async isVisible(
+        req, schema, destination, name, followingValues = {}
+      ) {
         const conditionalFields = {};
         const errors = {};
 
@@ -842,7 +878,8 @@ module.exports = {
                   field,
                   field.if,
                   destination,
-                  conditionalFields
+                  conditionalFields,
+                  followingValues
                 );
                 const previous = conditionalFields[field.name];
                 if (previous !== result) {
@@ -878,16 +915,17 @@ module.exports = {
         fieldModuleName,
         docId = null,
         optionalParenthesis = false,
-        following = {}
+        following = {},
+        featureType = 'field'
       ) {
         const [ methodDefinition, rest ] = methodKey.split('(');
         const hasParenthesis = rest !== undefined;
 
         if (!hasParenthesis && !optionalParenthesis) {
-          throw new Error(`The method "${methodDefinition}" defined in the "${fieldName}" field should be written with parenthesis: "${methodDefinition}()".`);
+          throw new Error(`The method "${methodDefinition}" defined in the "${fieldName}" ${featureType} should be written with parenthesis: "${methodDefinition}()".`);
         }
         if (hasParenthesis && !methodKey.endsWith('()')) {
-          self.apos.util.warn(`The method "${methodDefinition}" defined in the "${fieldName}" field should be written without argument: "${methodDefinition}()".`);
+          self.apos.util.warn(`The method "${methodDefinition}" defined in the "${fieldName}" ${featureType} should be written without argument: "${methodDefinition}()".`);
           methodKey = methodDefinition + '()';
         }
 
@@ -898,9 +936,9 @@ module.exports = {
         const module = self.apos.modules[moduleName];
 
         if (!module) {
-          throw new Error(`The "${moduleName}" module defined in the "${fieldName}" field does not exist.`);
+          throw new Error(`The "${moduleName}" module defined in the "${fieldName}" ${featureType} does not exist.`);
         } else if (!module[methodName]) {
-          throw new Error(`The "${methodName}" method from "${moduleName}" module defined in the "${fieldName}" field does not exist.`);
+          throw new Error(`The "${methodName}" method from "${moduleName}" module defined in the "${fieldName}" ${featureType} does not exist.`);
         }
 
         return module[methodName](req, { docId }, following);
@@ -948,31 +986,32 @@ module.exports = {
         }, self.apos.doc.toAposDocId);
       },
 
-      // Fetch all the relationships in the schema on the specified object or array
-      // of objects. The withRelationships option may be omitted.
+      // Fetch all the relationships in the schema on the specified object or
+      // array of objects. The withRelationships option may be omitted.
       //
-      // If withRelationships is omitted, null or undefined, all the relationships
-      // in the schema are performed, and also any relationships specified by the
-      // 'withRelationships' option of each relationship field in the schema, if any.
-      // And that's where it stops. Infinite recursion is not possible.
+      // If withRelationships is omitted, null or undefined, all the
+      // relationships in the schema are performed, and also any relationships
+      // specified by the 'withRelationships' option of each relationship field
+      // in the schema, if any. And that's where it stops. Infinite recursion is
+      // not possible.
       //
       // If withRelationships is specified and set to "false",
       // no relationships at all are performed.
       //
       // If withRelationships is set to an array of relationship names found
-      // in the schema, then only those relationships are performed, ignoring any
-      // 'withRelationships' options found in the schema.
+      // in the schema, then only those relationships are performed, ignoring
+      // any 'withRelationships' options found in the schema.
       //
-      // If a relationship name in the withRelationships array uses dot notation,
-      // like this:
+      // If a relationship name in the withRelationships array uses dot
+      // notation, like this:
       //
       // _events._locations
       //
       // Then the related events are fetched, and the locations related to
-      // those events are fetched, assuming that _events is defined as a relationship
-      // in the original schema and _locations is defined as a relationship in the
-      // schema for the events module. Multiple "dot notation" relationships
-      // may share a prefix.
+      // those events are fetched, assuming that _events is defined as a
+      // relationship in the original schema and _locations is defined as a
+      // relationship in the schema for the events module. Multiple "dot
+      // notation" relationships may share a prefix.
       //
       // Relationships are also supported in the schemas of array fields.
 
@@ -1013,8 +1052,8 @@ module.exports = {
             } else {
               relationship._dotPath = arrays.join('.') + '.' + relationship.name;
             }
-            // If we have more than one object we're not interested in relationships
-            // with the ifOnlyOne restriction right now.
+            // If we have more than one object we're not interested in
+            // relationships with the ifOnlyOne restriction right now.
             if (objects.length > 1 && relationship.ifOnlyOne) {
               return;
             }
@@ -1030,15 +1069,16 @@ module.exports = {
 
         findRelationships(schema, []);
 
-        // The withRelationships option allows restriction of relationships. Set to false
-        // it blocks all relationships. Set to an array, it allows the relationships
-        // named within. Dot notation can be used to specify relationships
-        // in array properties, or relationships reached via other relationships.
+        // The withRelationships option allows restriction of relationships.
+        // Set to false it blocks all relationships. Set to an array, it allows
+        // the relationships named within. Dot notation can be used to specify
+        // relationships in array properties, or relationships reached via other
+        // relationships.
         //
         // By default, all configured relationships will take place, but
         // withRelationships: false
-        // will be passed when fetching the objects on the other end of the relationship,
-        // so that infinite recursion never takes place.
+        // will be passed when fetching the objects on the other end of the
+        // relationship, so that infinite recursion never takes place.
 
         const withRelationshipsNext = {};
         // Explicit withRelationships option passed to us
@@ -1064,9 +1104,9 @@ module.exports = {
             return winner;
           });
         } else {
-          // No explicit withRelationships option for us, so we do all the relationships
-          // we're configured to do, and pass on the withRelationships options we
-          // have configured for those
+          // No explicit withRelationships option for us, so we do all the
+          // relationships we're configured to do, and pass on the
+          // withRelationships options we have configured for those
           _.each(relationships, function (relationship) {
             if (relationship.withRelationships) {
               withRelationshipsNext[relationship._dotPath] = relationship
@@ -1160,10 +1200,11 @@ module.exports = {
             _.extend(options.builders, relationship.builders);
           }
 
-          // If there is a projection for a reverse relationship, make sure it includes
-          // the idsStorage and fieldsStorage for the relationship, otherwise no related
-          // documents will be returned. Make sure the projection is positive,
-          // not negative, before attempting to add more positive assertions to it
+          // If there is a projection for a reverse relationship, make sure it
+          // includes the idsStorage and fieldsStorage for the relationship,
+          // otherwise no related documents will be returned. Make sure the
+          // projection is positive, not negative, before attempting to add more
+          // positive assertions to it
           if ((relationship.type === 'relationshipReverse') && options.builders.project && Object.values(options.builders.project).some(v => !!v)) {
             if (relationship.idsStorage) {
               options.builders.project[relationship.idsStorage] = 1;
@@ -1296,28 +1337,30 @@ module.exports = {
         self.apos.doc.walkByMetaType(doc, handlers);
       },
 
-      // Add a new field type. The `type` object may contain the following properties:
+      // Add a new field type. The `type` object may contain the following
+      // properties:
       //
       // ### `name`
       //
-      // Required. The name of the field type, such as `select`. Use a unique prefix
-      // to avoid collisions with future official Apostrophe field types.
+      // Required. The name of the field type, such as `select`. Use a unique
+      // prefix to avoid collisions with future official Apostrophe field types.
       //
       // ### `convert`
       //
-      // Required. An `async` function which takes `(req, field, data, destination)`.
-      // The value of the field is drawn from the untrusted input object `data` and
-      // sanitized if possible, then copied to the appropriate
+      // Required. An `async` function which takes `(req, field, data,
+      // destination)`. The value of the field is drawn from the untrusted input
+      // object `data` and sanitized if possible, then copied to the appropriate
       // property (or properties) of `destination`.
       //
       // `field` contains the schema field definition, useful to access
       // `def`, `min`, `max`, etc.
       //
-      // If the field cannot be sanitized an error can be thrown. To signal an error
-      // that can be examined by browser code and used for UI, throw a string like
-      // `required`. If the field is a composite field (`array` or `object`), throw
-      // an array of objects with `path` and `error` properties. For other errors,
-      // throw them directly and the browser will receive a generic error.
+      // If the field cannot be sanitized an error can be thrown. To signal an
+      // error that can be examined by browser code and used for UI, throw a
+      // string like `required`. If the field is a composite field (`array` or
+      // `object`), throw an array of objects with `path` and `error`
+      // properties. For other errors, throw them directly and the browser will
+      // receive a generic error.
       //
       // ### `empty`
       //
@@ -1328,7 +1371,8 @@ module.exports = {
       // ### `index`
       //
       // Optional. A function which accepts `value, field, texts` and pushes
-      // objects containing search engine-friendly text onto `texts`, if desired:
+      // objects containing search engine-friendly text onto `texts`, if
+      // desired:
       //
       // ```javascript
       // index: function(value, field, texts) {
@@ -1406,10 +1450,11 @@ module.exports = {
         });
       },
 
-      // You don't need to call this. It returns an async function that, when later called
-      // with no arguments, will give you query builder choices based on the given field,
-      // query and value field of interest. Relationship field types use this method to
-      // implement their query builder `choices`.
+      // You don't need to call this. It returns an async function that, when
+      // later called with no arguments, will give you query builder choices
+      // based on the given field, query and value field of interest.
+      // Relationship field types use this method to implement their query
+      // builder `choices`.
 
       relationshipQueryBuilderChoices(field, query, valueField) {
         return async function () {
@@ -1434,18 +1479,18 @@ module.exports = {
         };
       },
 
-      // You don't need to call this. It is called for you as part of the mechanism that
-      // adds query builders for all relationships.
+      // You don't need to call this. It is called for you as part of the
+      // mechanism that adds query builders for all relationships.
       //
-      // If you named your relationship properly (leading _), you also get a query builder
-      // *without* the `_` that accepts slugs rather than ids - it's suitable
-      // for public use in URLs (and it's good naming because the public would
-      // find the _ weird).
+      // If you named your relationship properly (leading _), you also get a
+      // query builder *without* the `_` that accepts slugs rather than ids -
+      // it's suitable for public use in URLs (and it's good naming because the
+      // public would find the _ weird).
       //
-      // If you're wondering, you should have had the leading _ anyway to keep it from
-      // persisting the loaded data for the relationship back to your doc, which could
-      // easily blow mongodb's doc size limit and in any case is out of data
-      // info in your database.
+      // If you're wondering, you should have had the leading _ anyway to keep
+      // it from persisting the loaded data for the relationship back to your
+      // doc, which could easily blow mongodb's doc size limit and in any case
+      // is out of data info in your database.
 
       addRelationshipSlugQueryBuilder(field, query, suffix) {
 
@@ -1477,8 +1522,9 @@ module.exports = {
               .relationships(false)
               .areas(false);
             const criteria = {};
-            // Even programmers appreciate shortcuts, so it's not enough that the
-            // sanitizer (which doesn't apply to programmatic use) accepts these
+            // Even programmers appreciate shortcuts, so it's not enough that
+            // the sanitizer (which doesn't apply to programmatic use) accepts
+            // these
             if (Array.isArray(value)) {
               criteria.slug = { $in: value };
             } else {
@@ -1509,8 +1555,8 @@ module.exports = {
       // Fetch the distinct values for the specified property via the specified
       // query and sort them before returning them.
       //
-      // Like `toDistinct`, but sorted. A convenience used by the standard query builders
-      // for many field types.
+      // Like `toDistinct`, but sorted. A convenience used by the standard
+      // query builders for many field types.
 
       async sortedDistinct(property, query) {
         const results = await query.toDistinct(property);
@@ -1526,14 +1572,15 @@ module.exports = {
         return value !== undefined && value !== null;
       },
 
-      // Validate a schema for errors. This is about validating the schema itself,
-      // not a data object. For instance, a field without a type property is flagged.
-      // Serious errors throw an exception, while certain lesser errors just print
-      // a message to stderr for bc.
+      // Validate a schema for errors. This is about validating the schema
+      // itself, not a data object. For instance, a field without a type
+      // property is flagged. Serious errors throw an exception, while certain
+      // lesser errors just print a message to stderr for bc.
       //
       // This method may also prevent errors by automatically supplying
-      // reasonable values for certain properties, such as the `idsStorage` property
-      // of a `relationship` field, or the `label` property of anything.
+      // reasonable values for certain properties, such as the `idsStorage`
+      // property of a `relationship` field, or the `label` property of
+      // anything.
 
       validate(schema, options, parent = null) {
         schema.forEach(field => {
@@ -1632,14 +1679,15 @@ module.exports = {
         ]);
       },
 
-      // Recursively register the given schema, giving each field an _id and making
-      // provision to be able to fetch its definition via apos.schema.getFieldById().
+      // Recursively register the given schema, giving each field an _id and
+      // making provision to be able to fetch its definition via
+      // apos.schema.getFieldById().
       //
-      // metaType and type refer to the doc or widget that ultimately contains this
-      // schema, even if it is nested as an array schema. `metaType` will be "doc"
-      // or "widget" and `type` will be the type name. This is used to dynamically assign
-      // sufficiently unique `arrayName` properties to array fields and may be used
-      // for similar scoping tasks.
+      // metaType and type refer to the doc or widget that ultimately contains
+      // this schema, even if it is nested as an array schema. `metaType` will
+      // be "doc" or "widget" and `type` will be the type name. This is used to
+      // dynamically assign sufficiently unique `arrayName` properties to array
+      // fields and may be used for similar scoping tasks.
 
       register(metaType, type, schema) {
         for (const field of schema) {
@@ -1658,28 +1706,28 @@ module.exports = {
         }
       },
       // Fetch a schema field definition by its _id. The _id comes into being at
-      // afterInit time and is used later to determine the options for widgets nested in
-      // areas when rendering a newly added widget in the context of a modal.
+      // afterInit time and is used later to determine the options for widgets
+      // nested in areas when rendering a newly added widget in the context of a
+      // modal.
       getFieldById(_id) {
         return self.fieldsById[_id];
       },
 
       // Implementation detail, called for you by the PATCH routes.
       // Alters `patch` into input suitable for a `convert` call
-      // to update `existingPage`. Does so by copying content from `existingPage`
-      // based on the operators and dot notation references
-      // initially present in `patch`. When this operation is complete
-      // every top level object impacted by the patch will be present
-      // in `patch`. Implements `$push`, $pullAll` and `$pullAllById`
-      // in addition to dot notation support and support for the use of
-      // `@_id` syntax in the first component of a path. `$push` includes
-      // support for `$each`, `$position`, and the apostrophe-specific
-      // `$before` and `$after` which take the `_id` of an existing object
-      // in the array to insert before or after, as an alternative to
-      // `$position`. Like MongoDB, Apostrophe requires `$each` when
-      // using `$position`, `$before` or `$after`. For durability,
-      // if `$position`, `$before` or `$after` has an invalid value
-      // the insertion takes place at the end of the existing array.
+      // to update `existingPage`. Does so by copying content from
+      // `existingPage` based on the operators and dot notation references
+      // initially present in `patch`. When this operation is complete every top
+      // level object impacted by the patch will be present in `patch`.
+      // Implements `$push`, $pullAll` and `$pullAllById` in addition to dot
+      // notation support and support for the use of `@_id` syntax in the first
+      // component of a path. `$push` includes support for `$each`, `$position`,
+      // and the apostrophe-specific `$before` and `$after` which take the `_id`
+      // of an existing object in the array to insert before or after, as an
+      // alternative to `$position`. Like MongoDB, Apostrophe requires `$each`
+      // when using `$position`, `$before` or `$after`. For durability, if
+      // `$position`, `$before` or `$after` has an invalid value the insertion
+      // takes place at the end of the existing array.
 
       implementPatchOperators(patch, existingPage) {
         const clonedBases = {};
@@ -1844,8 +1892,8 @@ module.exports = {
       },
 
       // Given a `patch` containing mongo-style patch operators like `$push`,
-      // return a subset of `schema` containing the root fields that would ultimately
-      // be updated by those operations.
+      // return a subset of `schema` containing the root fields that would
+      // ultimately be updated by those operations.
       subsetSchemaForPatch(schema, patch) {
         const idsStorageFields = {};
         schema.forEach(function(field) {
@@ -1908,13 +1956,15 @@ module.exports = {
 
         return result;
       },
-      // Array "managers" currently offer just a schema property, for parallelism
-      // with doc type and widget managers. This allows the getManagerOf method
-      // to operate on objects of any of three types: doc, widget or array item.
+      // Array "managers" currently offer just a schema property, for
+      // parallelism with doc type and widget managers. This allows the
+      // getManagerOf method to operate on objects of any of three types: doc,
+      // widget or array item.
       getArrayManager(name) {
         return self.arrayManagers[name];
       },
-      // This allows the getManagerOf method to operate on objects of type "object".
+      // This allows the getManagerOf method to operate on objects of type
+      // "object".
       getObjectManager(name) {
         return self.objectManagers[name];
       },
@@ -2024,8 +2074,8 @@ module.exports = {
           throw self.apos.error('error', 'schema pointer not found even though field id is valid');
         }
         let path = relativePath;
-        // We are at the field level, first step to our own parent, which is a schema,
-        // so that a path like "peername" works
+        // We are at the field level, first step to our own parent, which is a
+        // schema, so that a path like "peername" works
         pointer = pointer.parent;
         // Now deal with any ancestor paths
         while (path.startsWith('<')) {
@@ -2116,11 +2166,11 @@ module.exports = {
       // (created in `ui/apos/components`).
       // Properties:
       // - `component`: the name of the Vue component
-      // - `props`: (optional, object) additional props to pass to the component.
-      // - `if`: (optional, object) a standard Apostrophe condition to show/hide
-      //    the indicator. Keep in mind the component can also decide internally
-      //    to show/hide itself. The condition is evaluated against the draft doc.
-      //    The keys represent field names and support dot notation.
+      // - `props`: (optional, object) additional props to pass to the
+      // component. - `if`: (optional, object) a standard Apostrophe condition
+      // to show/hide the indicator. Keep in mind the component can also decide
+      // internally to show/hide itself. The condition is evaluated against the
+      // draft doc. The keys represent field names and support dot notation.
       //
       // Example:
       // ```javascript
@@ -2143,6 +2193,45 @@ module.exports = {
           props,
           if: condition
         });
+      },
+
+      async getFilterDynamicChoices(req, dynamicChoices, manager) {
+        if (!dynamicChoices.length) {
+          return {};
+        }
+
+        const moduleName = manager.__meta.name;
+        const result = {};
+        for (const choice of dynamicChoices) {
+          const filter = manager.filters.find(f => f.name === choice);
+
+          if (!filter) {
+            throw self.apos.error('invalid', `Filter "${choice}" not found in module "${moduleName}".`);
+          }
+
+          try {
+            const choices = await self.evaluateMethod(
+              req,
+              filter.choices,
+              filter.name,
+              moduleName,
+              null,
+              true,
+              {},
+              'filter'
+            );
+
+            if (Array.isArray(choices)) {
+              result[choice] = choices;
+            } else {
+              throw self.apos.error('invalid', `The method ${filter.choices} from the module ${moduleName} did not return an array`);
+            }
+          } catch (error) {
+            throw self.apos.error('invalid', error.message);
+          }
+        }
+
+        return result;
       },
 
       async choicesRoute(req) {
@@ -2219,7 +2308,8 @@ module.exports = {
 
           const field = self.getFieldById(fieldId);
           const allowedKeys = getFieldExternalConditionKeys(field);
-          // We must tolerate arguments at this stage as we only warn about them later
+          // We must tolerate arguments at this stage as we only warn about
+          // them later
           if (!allowedKeys.includes(conditionKey.replace(/\(.*\)/, '()'))) {
             throw self.apos.error('forbidden', `${conditionKey} is not registered as an external condition.`);
           }

@@ -83,7 +83,8 @@ export default {
             choices: this.addNullChoice(
               filter,
               this.choices[filter.name] || filter.choices
-            )
+            ),
+            def: filter.def
           },
           value: {
             data: this.values[filter.name]
@@ -107,7 +108,7 @@ export default {
       this.$emit('input', filterName, value);
     },
     addNullChoice(filter, choices) {
-      if (filter.required) {
+      if (filter.required || filter.inputType === 'checkbox') {
         return choices;
       }
       if (!choices) {
@@ -138,24 +139,29 @@ export default {
   min-width: 140px;
 
   :deep(.apos-input--select) {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
     background-color: var(--a-base-10);
     font-style: italic;
+  }
+
+  :deep(.apos-choice-label) {
+    padding-right: $spacing-half;
+    padding-left: $spacing-half;
   }
 }
 
 .apos-filters-menu :deep(.apos-field__label) {
   display: block;
   width: 100%;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
+  margin-bottom: $spacing-base + $spacing-half;
+  padding-bottom: $spacing-half;
   border-bottom: 1px solid var(--a-base-9);
-  color: var(--a-base-3);
+  color: var(--a-base-2);
 }
 
 .apos-filters-menu__set {
-  margin-bottom: 30px;
+  margin: 0 0 $spacing-double + $spacing-half;
 
   &:last-child {
     margin-bottom: 0;

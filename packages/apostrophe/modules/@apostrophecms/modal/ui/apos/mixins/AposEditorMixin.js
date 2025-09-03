@@ -78,24 +78,29 @@ export default {
     async evaluateExternalConditions() {
       this.externalConditionsResults = await evaluateExternalConditions(
         this.schema,
-        this.docId || this.docFields?.data?._docId,
+        this.docId || this.docFields?.data?._docId || this.docFields?.data?._id,
         this.$t
       );
     },
 
-    // followedByCategory may be falsy (all fields), "other" or "utility". The returned
-    // object contains properties named for each field in that category that
-    // follows other fields. For instance if followedBy is "utility" then in our
-    // default configuration `followingValues` will be:
+    // followedByCategory may be falsy (all fields), "other" or "utility". The
+    // returned object contains properties named for each field in that category
+    // that follows other fields. For instance if followedBy is "utility" then
+    // in our default configuration `followingValues` will be:
     //
     // `{ slug: { title: 'latest title here' } }`
-    followingValues(followedByCategory) {
+    followingValues(followedByCategory, parentOnly = false) {
       const fields = this.getFieldsByCategory(followedByCategory);
 
       const followingValues = {};
       const parentFollowing = {};
       for (const [ key, val ] of Object.entries(this.parentFollowingValues || {})) {
         parentFollowing[`<${key}`] = val;
+      }
+
+      if (parentOnly) {
+        // If we are only interested in the parent following values, return them
+        return parentFollowing;
       }
 
       for (const field of fields) {
@@ -142,11 +147,16 @@ export default {
     // in that category, although they may be conditional upon fields in either
     // category.
     getConditionalFields(followedByCategory) {
-      return getConditionalFields(
-        this.schema,
-        this.getFieldsByCategory(followedByCategory),
+      const values = {
+        // Append the parent following values without the current doc
+        // values, so that the parent can be used in conditions
+        ...this.followingValues(followedByCategory, true),
         // currentDoc for arrays, docFields for all other editors
-        this.currentDoc ? this.currentDoc.data : this.docFields.data,
+        ...(this.currentDoc ? this.currentDoc.data : this.docFields.data)
+      };
+      return getConditionalFields(
+        this.getFieldsByCategory(followedByCategory),
+        values,
         this.externalConditionsResults
       );
     },
@@ -192,7 +202,11 @@ export default {
           }
         }
       } else {
-        await apos.notify((e.body && e.body.message) || fallback, {
+        // As per the new standard, any message in `data.detail` is considered
+        // a human readable error message. If it is not present, we fall back to
+        // the message in `body.message` or the fallback.
+        const bodyMessage = e.body?.data?.detail || e.body?.message;
+        await apos.notify(bodyMessage || fallback, {
           type: 'danger',
           icon: 'alert-circle-icon',
           dismiss: true
@@ -201,60 +215,15 @@ export default {
     },
     triggerValidate() {
       this.triggerValidation = true;
-      this.$nextTick(async () => {
+      this.$nextTick(() => {
         this.triggerValidation = false;
       });
     },
-    // Perform any postprocessing required by direct or nested schema fields
-    // before the object can be saved
     async postprocess() {
-      // Relationship fields may have postprocessors (e.g. autocropping)
-      const relationships = findRelationships(this.schema, this.docFields.data);
-      for (const relationship of relationships) {
-        if (!(relationship.value && relationship.field.postprocessor)) {
-          continue;
-        }
-        const withType = relationship.field.withType;
-        const module = apos.modules[withType];
-        relationship.context[relationship.field.name] = (await apos.http.post(`${module.action}/${relationship.field.postprocessor}`, {
-          qs: {
-            aposMode: 'draft'
-          },
-          body: {
-            relationship: relationship.value,
-            // Pass the options of the widget currently being edited, some
-            // postprocessors need these
-            // (e.g. autocropping cares about widget aspectRatio)
-            widgetOptions: apos.area.widgetOptions[0]
-          },
-          busy: true
-        })).relationship;
-      }
-      function findRelationships(schema, object) {
-        let relationships = [];
-        for (const field of schema) {
-          if (field.type === 'relationship') {
-            relationships.push({
-              context: object,
-              field,
-              value: object[field.name]
-            });
-          } else if (field.type === 'array') {
-            for (const value of (object[field.name] || [])) {
-              relationships = [
-                ...relationships,
-                findRelationships(field.schema, value)
-              ];
-            }
-          } else if (field.type === 'object') {
-            relationships = [
-              ...relationships,
-              findRelationships(field.schema, object[field.name] || {})
-            ];
-          }
-        }
-        return relationships;
-      }
+      // eslint-disable-next-line no-console
+      console.warn(
+        'The function postprocess from AposEditorMixin does not do anything anymore.\nRelationship postprocessing is made at input level in AposInputRelationship and in some cases globally like in AposImageWidget.'
+      );
     }
   }
 };

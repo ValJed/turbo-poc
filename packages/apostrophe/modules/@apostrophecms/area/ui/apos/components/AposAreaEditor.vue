@@ -1,12 +1,17 @@
 <template>
   <div
+    v-click-outside-element="resetFocusedArea"
     :data-apos-area="areaId"
     class="apos-area"
     :class="themeClass"
+    @click="setFocusedArea(areaId, $event)"
   >
     <div
       v-if="next.length === 0 && !foreign"
       class="apos-empty-area"
+      tabindex="0"
+      @paste="paste(0)"
+      @click="setFocusedArea(areaId, $event)"
     >
       <template v-if="isEmptySingleton">
         <AposButton
@@ -27,10 +32,12 @@
           :empty="true"
           :index="0"
           :options="options"
+          :field-id="fieldId"
           :max-reached="maxReached"
           :disabled="field && field.readOnly"
           :widget-options="options.widgets"
           :tabbable="true"
+          :open="false"
           @add="add"
         />
       </template>
@@ -66,6 +73,7 @@
         @clone="clone"
         @update="update"
         @add="add"
+        @paste="paste"
       />
     </div>
   </div>
@@ -73,9 +81,9 @@
 
 <script>
 import { createId } from '@paralleldrive/cuid2';
-import { klona } from 'klona';
 import AposThemeMixin from 'Modules/@apostrophecms/ui/mixins/AposThemeMixin';
 import newInstance from 'apostrophe/modules/@apostrophecms/schema/lib/newInstance.js';
+import cloneWidget from 'Modules/@apostrophecms/area/lib/clone-widget.js';
 
 export default {
   name: 'AposAreaEditor',
@@ -194,6 +202,13 @@ export default {
     foreign() {
       // Cast to boolean is necessary to satisfy prop typing
       return !!(this.docId && (window.apos.adminBar.contextId !== this.docId));
+    },
+    focusedWidgetIndex() {
+      if (!this.focusedWidget) {
+        return -1;
+      }
+
+      return this.next.findIndex(widget => widget._id === window.apos.focusedWidget);
     }
   },
   watch: {
@@ -242,13 +257,99 @@ export default {
       apos.bus.$on('area-updated', this.areaUpdatedHandler);
       apos.bus.$on('widget-hover', this.updateWidgetHovered);
       apos.bus.$on('widget-focus', this.updateWidgetFocused);
+      apos.bus.$on('command-menu-area-copy-widget', this.handleCopy);
+      apos.bus.$on('command-menu-area-cut-widget', this.handleCut);
+      apos.bus.$on('command-menu-area-duplicate-widget', this.handleDuplicate);
+      apos.bus.$on('command-menu-area-paste-widget', this.handlePaste);
+      apos.bus.$on('command-menu-area-remove-widget', this.handleRemove);
       window.addEventListener('keydown', this.focusParentEvent);
     },
     unbindEventListeners() {
       apos.bus.$off('area-updated', this.areaUpdatedHandler);
       apos.bus.$off('widget-hover', this.updateWidgetHovered);
       apos.bus.$off('widget-focus', this.updateWidgetFocused);
+      apos.bus.$off('command-menu-area-copy-widget', this.handleCopy);
+      apos.bus.$off('command-menu-area-cut-widget', this.handleCut);
+      apos.bus.$off('command-menu-area-duplicate-widget', this.handleDuplicate);
+      apos.bus.$off('command-menu-area-paste-widget', this.handlePaste);
+      apos.bus.$off('command-menu-area-remove-widget', this.handleRemove);
       window.removeEventListener('keydown', this.focusParentEvent);
+    },
+    isInsideContentEditable() {
+      return document.activeElement.closest('[contenteditable]') !== null;
+    },
+    isInsideFocusedArea() {
+      return window.apos.focusedArea === this.areaId;
+    },
+    resetFocusedArea() {
+      if (window.apos.focusedArea !== this.areaId) {
+        return;
+      }
+
+      this.setFocusedArea(null, null);
+    },
+    setFocusedArea(areaId, event) {
+      if (event) {
+        // prevent parent areas from changing the focusedArea
+        event.stopPropagation();
+      }
+
+      window.apos.focusedArea = areaId;
+    },
+    handleCopy() {
+      if (
+        !this.isInsideFocusedArea() ||
+        this.isInsideContentEditable() ||
+        this.focusedWidgetIndex === -1
+      ) {
+        return;
+      }
+
+      this.copy(this.focusedWidgetIndex);
+    },
+    handleCut() {
+      if (
+        !this.isInsideFocusedArea() ||
+        this.isInsideContentEditable() ||
+        this.focusedWidgetIndex === -1
+      ) {
+        return;
+      }
+
+      this.cut(this.focusedWidgetIndex);
+    },
+    handleDuplicate() {
+      if (
+        !this.isInsideFocusedArea() ||
+        this.isInsideContentEditable() ||
+        this.focusedWidgetIndex === -1
+      ) {
+        return;
+      }
+
+      this.clone(this.focusedWidgetIndex);
+    },
+    handlePaste() {
+      if (
+        !this.isInsideFocusedArea() ||
+        this.isInsideContentEditable() ||
+        (this.focusedWidgetIndex === -1 && this.next.length > 0)
+      ) {
+        return;
+      }
+
+      this.paste(Math.max(this.focusedWidgetIndex, 0));
+    },
+    handleRemove() {
+      if (
+        !this.isInsideFocusedArea() ||
+        this.isInsideContentEditable() ||
+        this.focusedWidgetIndex === -1
+      ) {
+        return;
+      }
+
+      this.remove(this.focusedWidgetIndex);
     },
     areaUpdatedHandler(area) {
       for (const item of this.next) {
@@ -267,10 +368,42 @@ export default {
       this.hoveredWidget = _id;
       this.hoveredNonForeignWidget = nonForeignId;
     },
-    updateWidgetFocused(widgetId) {
-      this.focusedWidget = widgetId;
+    updateWidgetFocused({ _id, scrollIntoView = false }) {
+      this.focusedWidget = _id;
       // Attached to window so that modals can see the area is active
-      window.apos.focusedWidget = widgetId;
+      window.apos.focusedWidget = _id;
+
+      // We want what's next to run only once
+      // for the area containing the focusedWidget
+      // and not for all areas present on the page
+      if (this.focusedWidgetIndex === -1) {
+        return;
+      }
+
+      this.setFocusedArea(this.areaId, null);
+
+      if (scrollIntoView) {
+        this.$nextTick(() => {
+          const $el = document.querySelector(`[data-apos-widget-id="${_id}"]`);
+          if (!$el) {
+            return;
+          }
+
+          const headerHeight = window.apos.adminBar.height;
+          const bufferSpace = 40;
+          const targetTop = $el.getBoundingClientRect().top;
+          const scrollPos = targetTop - headerHeight - bufferSpace;
+
+          window.scrollBy({
+            top: scrollPos,
+            behavior: 'smooth'
+          });
+
+          $el.focus({
+            preventScroll: true
+          });
+        });
+      }
     },
     async up(i) {
       if (this.docId === window.apos.adminBar.contextId) {
@@ -320,6 +453,15 @@ export default {
         ...this.next.slice(0, i),
         ...this.next.slice(i + 1)
       ];
+      const focusNext = this.next[i - 1] || this.next[i];
+
+      if (focusNext) {
+        apos.bus.$emit('widget-focus', {
+          _id: focusNext._id,
+          scrollIntoView: true
+        });
+      }
+
     },
     async cut(i) {
       apos.area.widgetClipboard.set(this.next[i]);
@@ -393,6 +535,7 @@ export default {
           type: widget.type,
           docId: this.docId,
           parentFollowingValues: this.followingValues,
+          areaFieldId: this.fieldId,
           meta: this.meta[widget._id]?.aposMeta,
           preview
         });
@@ -404,77 +547,71 @@ export default {
       }
     },
     clone(index) {
-      const widget = klona(this.next[index]);
-      delete widget._id;
-      this.regenerateIds(
-        apos.modules[apos.area.widgetManagers[widget.type]].schema,
-        widget
-      );
+      const widget = cloneWidget(this.next[index]);
       this.insert({
         widget,
-        index
+        index: index + 1
       });
     },
-    // Regenerate all array item, area, object and widget ids so they are considered
-    // new. Useful when copying a widget with nested content.
-    regenerateIds(schema, object) {
-      object._id = createId();
-      for (const field of schema) {
-        if (field.type === 'array') {
-          for (const item of (object[field.name] || [])) {
-            this.regenerateIds(field.schema, item);
-          }
-        } else if (field.type === 'object') {
-          this.regenerateIds(field.schema, object[field.name] || {});
-        } else if (field.type === 'area') {
-          if (object[field.name]) {
-            object[field.name]._id = createId();
-            for (const item of (object[field.name].items || [])) {
-              const schema = apos.modules[apos.area.widgetManagers[item.type]].schema;
-              this.regenerateIds(schema, item);
-            }
-          }
+    async paste(index) {
+      const clipboard = apos.area.widgetClipboard.get();
+      if (clipboard) {
+        const widget = clipboard;
+        const allowed = this.contextMenuOptions.menu.find(
+          option => option.name === widget.type
+        );
+        if (allowed) {
+          this.add({
+            index,
+            clipboard
+          });
         }
-        // We don't want to regenerate attachment ids. They correspond to
-        // actual files, and the reference count will update automatically
       }
     },
-    async update(widget, { autosave = true } = {}) {
-      widget.aposPlaceholder = false;
-      if (!widget.metaType) {
-        widget.metaType = 'widget';
+    async update(updated, { autosave = true, reverting = false } = {}) {
+      if (!reverting) {
+        updated.aposPlaceholder = false;
+      }
+      if (!updated.metaType) {
+        updated.metaType = 'widget';
       }
       if (autosave && (this.docId === window.apos.adminBar.contextId)) {
         apos.bus.$emit('context-edited', {
-          [`@${widget._id}`]: widget
+          [`@${updated._id}`]: updated
         });
       }
-      const index = this.next.findIndex(w => w._id === widget._id);
-      this.next = [
-        ...this.next.slice(0, index),
-        widget,
-        ...this.next.slice(index + 1)
-      ];
-      this.edited[widget._id] = true;
+      this.next = this.next.map((widget) => {
+        if (widget._id === updated._id) {
+          return updated;
+        }
+        return widget;
+      });
+      this.edited[updated._id] = true;
     },
-    // Add a widget into an area.
+    // Add a widget into an area. index is required, along
+    // with one and only one of name, widget or clipboard.
+    // If widget is passed it is inserted directly. If
+    // clipboard is passed it is cloned and inserted.
     async add({
       index,
       name,
+      widget,
       clipboard
     }) {
       if (clipboard) {
-        // clear clipboard after paste
-        apos.area.widgetClipboard.set(null);
-        this.regenerateIds(
-          apos.modules[apos.area.widgetManagers[clipboard.type]].schema,
-          clipboard
-        );
+        clipboard = cloneWidget(clipboard);
         return this.insert({
           widget: clipboard,
           index
         });
-      } else if (this.widgetIsContextual(name)) {
+      }
+      if (widget) {
+        return this.insert({
+          widget,
+          index
+        });
+      }
+      if (this.widgetIsContextual(name)) {
         return this.insert({
           widget: {
             type: name,
@@ -483,34 +620,36 @@ export default {
           },
           index
         });
-      } else if (!this.widgetHasInitialModal(name)) {
-        const widget = this.newWidget(name);
+      }
+      if (!this.widgetHasInitialModal(name)) {
+        const newWidget = this.newWidget(name);
         return this.insert({
           widget: {
-            ...widget,
+            ...newWidget,
             aposPlaceholder: this.widgetHasPlaceholder(name)
           },
           index
         });
-      } else {
-        const componentName = this.widgetEditorComponent(name);
-        apos.area.activeEditor = this;
-        const preview = this.widgetPreview(name, index, true);
-        const widget = await apos.modal.execute(componentName, {
-          modelValue: null,
-          options: this.widgetOptionsByType(name),
-          type: name,
-          docId: this.docId,
-          parentFollowingValues: this.followingValues,
-          preview
+      }
+
+      const componentName = this.widgetEditorComponent(name);
+      apos.area.activeEditor = this;
+      const preview = this.widgetPreview(name, index, true);
+      const newWidget = await apos.modal.execute(componentName, {
+        modelValue: null,
+        options: this.widgetOptionsByType(name),
+        type: name,
+        docId: this.docId,
+        areaFieldId: this.fieldId,
+        parentFollowingValues: this.followingValues,
+        preview
+      });
+      apos.area.activeEditor = null;
+      if (newWidget) {
+        return this.insert({
+          widget: newWidget,
+          index
         });
-        apos.area.activeEditor = null;
-        if (widget) {
-          return this.insert({
-            widget,
-            index
-          });
-        }
       }
     },
     widgetOptionsByType(name) {
@@ -558,6 +697,10 @@ export default {
       if (this.widgetIsContextual(widget.type)) {
         this.edit(index);
       }
+      apos.bus.$emit('widget-focus', {
+        _id: widget._id,
+        scrollIntoView: true
+      });
     },
     widgetIsContextual(type) {
       return this.moduleOptions.widgetIsContextual[type];
@@ -648,6 +791,10 @@ function cancelRefresh(refreshOptions) {
   min-height: 50px;
   background-color: var(--a-base-9);
   border-radius: var(--a-border-radius);
+
+  &:focus, &:active {
+    border-color: var(--a-primary);
+  }
 }
 
 </style>

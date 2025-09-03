@@ -265,7 +265,7 @@ export default {
         this.$emit('reset');
       });
     },
-    updateNextAndEmit() {
+    async updateNextAndEmit() {
       if (!this.schemaReady) {
         return;
       }
@@ -285,12 +285,20 @@ export default {
           if (this.fieldState[field.name].error) {
             this.next.hasErrors = true;
           }
-          // This simply check if a field has changed since it has been instantiated
+          // This simply check if a field has changed since it has been
+          // instantiated
           if (
             this.fieldState[field.name].data !== undefined &&
-          detectFieldChange(field, this.next.data[field.name], this.fieldState[field.name].data)
+            detectFieldChange(
+              field,
+              this.next.data[field.name],
+              this.fieldState[field.name].data
+            )
           ) {
             changeFound = true;
+
+            // fieldState never gets the relationships postprocessed data
+            // that's why it gets seen as different than next all the time
             this.next.data[field.name] = this.fieldState[field.name].data;
           } else {
             this.next.data[field.name] = this.modelValue.data[field.name];
