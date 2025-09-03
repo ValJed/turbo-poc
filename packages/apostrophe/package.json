@@ -132,7 +132,7 @@
     "xregexp": "^2.0.0"
   },
   "devDependencies": {
-    "eslint-config-apostrophe": "^5.0.0",
+    "eslint-config-apostrophe": "*",
     "form-data": "^4.0.4",
     "mocha": "^10.7.3",
     "nyc": "^15.1.0",
