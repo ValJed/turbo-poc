@@ -4,6 +4,30 @@
 
 ### Adds
 
+* Custom operations registered with `addCreateWidgetOperation` can now specify an `ifTypesIntersect` property containing an array of widget type names. If the area in question allows at least one, the operation is offered.
+* The login-requirements tests were updated to include tests for the `uponSubmit` filter
+* Add `prependNodes` and `appendNodes` calls for `main`.
+* Add options for pieces to change the title, message and icon of the empty state block.
+
+### Fixes
+
+* Fixes a bug in the login `uponSubmit` filter where a user could login without meeting the requirement.
+
+### Fixes
+
+* Resolve inline image URLs correctly when in edit mode and not in the default locale.
+
+### Changes
+
+* Redirects to URLs containing accent marks and other non-ascii characters now behave as expected with Astro. Pre-encoding the URLs exactly the way `res.redirect` would before passing them to Astro prevents an error in Astro and allows the redirect to succeed.
+* Removes the non-functional `uniqueUsername` route from the `user` module
+* Updated dependencies to address deprecation warnings.
+
+
+## 4.21.0 (2025-09-03)
+
+### Adds
+
 * Modules can now call `apos.area.addCreateWidgetOperation` to register a custom operation that invokes a modal and inserts the widget returned by that modal. These operations are offered as choices in all "add widget" menus, both regular and expanded.
 * `AposDocEditor` now accepts a `values` prop, which can be used to pass an object of initial values for some or all fields. Use of this prop is optional. It is not supported when editing existing documents.
 * `apos.doc.edit` now accepts an optional `values` object as the final parameter, containing initial values for some or all fields. This is supported only when editing existing documents.
@@ -21,6 +45,7 @@
 * Fixes the widget data being cloned to be saved before the `postprocess` method being called, which leads to a loss of data in `AposWidgetEditor` (like the autocrop data).
 * In editors like `AposWidgetEditor` relationships are now post processed after they are updated in `AposInputRelationship` only for the relationship that has been updated. 
 It allows live preview to work well with it, it also avoids complexity and fixes updated data not being properly synced between the editor and the `AposSchema`.
+* Deeply nested widgets can now be edited properly via the editor dialog box. This longstanding issue did not affect on-page editing.
 
 ### Changes
 

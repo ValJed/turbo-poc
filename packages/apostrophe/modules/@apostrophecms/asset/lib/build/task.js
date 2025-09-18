@@ -47,10 +47,6 @@ module.exports = (self) => ({
     // Keep track of the executed builds
     const buildsExecuted = [];
 
-    console.log('bundleDir', bundleDir);
-    console.log('buildDir', buildDir);
-    console.log('symlinkModules', symLinkModules);
-
     // Don't clutter up with previous builds.
     await fs.remove(buildDir);
     await fs.mkdirp(buildDir);

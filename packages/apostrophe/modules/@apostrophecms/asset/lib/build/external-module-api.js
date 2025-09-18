@@ -108,6 +108,7 @@ module.exports = (self) => {
       if (types) {
         return self.moduleBuildEntrypoints.filter((entry) => types.includes(entry.type));
       }
+
       return self.moduleBuildEntrypoints;
     },
 

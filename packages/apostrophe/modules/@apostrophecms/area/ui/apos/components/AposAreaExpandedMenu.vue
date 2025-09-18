@@ -100,6 +100,8 @@
 </template>
 
 <script>
+import filterCreateWidgetOperations from '../lib/filter-create-widget-operations.js';
+
 export default {
   name: 'AposAreaExpandedMenu',
   props: {
@@ -177,7 +179,7 @@ export default {
       return count ? +count > 1 && +count < 4 : true;
     },
     getCreateWidgetOperationsGroups() {
-      const operations = this.moduleOptions.createWidgetOperations;
+      const operations = filterCreateWidgetOperations(this.moduleOptions, this.options);
       if (operations.length === 0) {
         return [];
       }
@@ -287,14 +289,16 @@ export default {
 .apos-operation {
   @include apos-transition();
 
-  box-sizing: border-box;
-  width: 100%;
-  height: 70px;
-  border-radius: var(--a-border-radius);
-  border: 1px solid var(--a-base-5);
-  color: var(--a-text-primary);
-  background-color: var(--a-base-9);
-  cursor: pointer;
+  & {
+    box-sizing: border-box;
+    width: 100%;
+    height: 70px;
+    border-radius: var(--a-border-radius);
+    border: 1px solid var(--a-base-5);
+    color: var(--a-text-primary);
+    background-color: var(--a-base-9);
+    cursor: pointer;
+  }
 
   &:hover {
     background-color: var(--a-base-8);
