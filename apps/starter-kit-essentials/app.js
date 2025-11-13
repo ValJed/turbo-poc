@@ -32,7 +32,11 @@ apostrophe({
     // `asset` supports the project's build for client-side assets.
     asset: {},
     // use vite for asset bundling and hot module reloading
-    '@apostrophecms/vite': {},
+    '@apostrophecms/vite': {
+      options: {
+        resolvePackageRoots: true
+      }
+    },
     // The project's first custom page type.
     'default-page': {}
   }
