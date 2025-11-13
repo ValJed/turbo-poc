@@ -4,6 +4,52 @@
 
 ### Adds
 
+* Translation strings added for the layout- and layout-column-widgets.
+* When switching locale from the doc editor, ask if the user wants to localize the current document in the target locale or want to start a blank document.
+* Introduced a new `longPolling: false` option for the `@apostrophecms/notification` module. This eliminates long-pending requests when logged in, but also slows down the delivery of notifications. The behavior can be tuned further via the `pollingInterval` option, which defaults to `5000` milliseconds.
+
+### Changes
+
+* Bump nodemailer to v7.x.
+
+### Fixes
+
+* Specify the content type when calling back to Astro with JSON to render an area. This is required starting in Astro 4.9.0 and up, otherwise the request is blocked by CSRF protection.
+* Fixes `AposBreadcrumbSwitch` tooltip prop that is supposed to be an object, not a string. Object returned from the shared method `getOperationTooltip`.
+
+## 4.23.0 (2025-10-30)
+
+### Adds
+
+* Add locale picker in the page and piece manager modals.
+* Support for the `render-areas` query parameter in the REST API when using Astro as an external frontend, provided the Astro project has the corresponding route. This allows section template library previews to work in Astro projects. For ease of migration, if Astro cannot satisfy the request, ApostropheCMS will also attempt to render the widget natively.
+* Made `self.apos.externalFrontKey` available, simplifying API calls back to Astro.
+* Layout widget for dynamic grid layouts.
+* `widgetOperations` support for `placement: 'breadcrumb'` to add operations to the breadcrumb menu of widgets. Extend the widget operations configuration to support various features when in the breadcrumb menu.
+* Area template (Nunjucks) support for `aposStyle`, `aposClassName`, `aposParentOptions` and `aposAttrs` contextual named variables (`with {}` syntax).
+* New login option `caseInsensitive` to force login usernames and emails to be case insensitive. New task `login-case-insensitive` updating all login names / email to lowercase, used by a new migration when switching to `caseInsensitive`.
+* Adds `disableIfProps` and `disableTooltip` to widget operations and breadcrumb operations.
+
+### Changes
+
+* Enable `/api/v1/@apostrophecms/login/logout` and `/api/v1/@apostrophecms/login/whoami` routes when `localLogin` is `false`.
+* Refactored complex logic regarding data updates in `AposSchema`.
+* Cleaned up `annotateAreaForExternalFront` logic and added context so developers understand the reason if it fails due to a widget type with no matching module in the project.
+* Color fields now display their preset color swatches in the field UI rather than just the color picker popup
+* Moves widget operations to backend with new `action` and `nativeAction` properties.
+* Moves `mode` from breakpoint preview to it's own store (to be used by layout).
+
+### Fixes
+
+* The `render-areas` query parameter now works correctly with areas nested in array items.
+* Fix min size calculation for image widgets configured with an aspect ratio.
+* Added missing `await` in helper library function for the asset module, ensuring JS assets build reliably.
+* Autodetection of bundles, and automatic activation of "improvements" shipped in those bundles, now works correctly when the bundle is delivered in ES module format rather than commonjs format.
+
+## 4.22.0 (2025-10-01)
+
+### Adds
+
 * Custom operations registered with `addCreateWidgetOperation` can now specify an `ifTypesIntersect` property containing an array of widget type names. If the area in question allows at least one, the operation is offered.
 * The login-requirements tests were updated to include tests for the `uponSubmit` filter
 * Add `prependNodes` and `appendNodes` calls for `main`.
@@ -12,17 +58,24 @@
 ### Fixes
 
 * Fixes a bug in the login `uponSubmit` filter where a user could login without meeting the requirement.
-
-### Fixes
-
+* Fixes pieces filters when values from optional fields are falsy.
 * Resolve inline image URLs correctly when in edit mode and not in the default locale.
+* Using `CTRL+F` or `CMD+F` in the page manager now works.
 
 ### Changes
 
 * Redirects to URLs containing accent marks and other non-ascii characters now behave as expected with Astro. Pre-encoding the URLs exactly the way `res.redirect` would before passing them to Astro prevents an error in Astro and allows the redirect to succeed.
 * Removes the non-functional `uniqueUsername` route from the `user` module
+* Modifies the `annotateAreaForExternalFront()` method of the `@apostrophecms/template` module to accept a per-module `annotateWidgetForExternalFront()` method. This allows widgets to send project-level options alongside the per-area options to external frontends.
 * Updated dependencies to address deprecation warnings.
 
+## 4.21.1 (2025-09-26)
+
+### Adds
+
+* The `exit` option to the main `apostrophe()` function now supports the new string value `exit: 'throw'`. If this value is specified and the apostrophe startup procedure fails with an error, the actual error is re-thrown for the benefit of the caller.
+* For backwards compatibility, the existing `exit: false` option to the main `apostrophe()` function is still supported, but now logs the error that took place before returning `undefined` as before. This is more useful than the previous behavior, but `exit: 'throw'` is the more logical choice if you need to avoid a process exit.
+* The default behavior is still to log the error and exit the process, which isthe only sensible move in most single-site projects.
 
 ## 4.21.0 (2025-09-03)
 

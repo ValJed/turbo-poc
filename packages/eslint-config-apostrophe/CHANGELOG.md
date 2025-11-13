@@ -1,3 +1,20 @@
+## 6.0.2 (2025-09-16)
+
+### Fixes
+
+- Ignore `apos-build`, `data` and `public` directories recursively.
+
+## 6.0.1 (2025-09-09)
+
+### Fixes
+
+- Apply `vue/max-len` rule to vue files only.
+
+## 6.0.0 (2025-09-09)
+
+### Breaking changes
+
+- Migration to `eslint@9` and `neostandard`.
 
 ## 5.0.0 (2024-03-31)
 
