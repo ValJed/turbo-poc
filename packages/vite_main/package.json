@@ -1,5 +1,5 @@
 {
-  "name": "@apostrophecms/vite",
+  "name": "@apostrophecms/vite_main",
   "version": "1.1.0",
   "description": "Vite build flow for ApostropheCMS projects.",
   "main": "index.js",
@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "eslint": "eslint --ext .js,.mjs .",
+    "eslint": "eslint --ext .js .",
     "lint": "npm run eslint",
     "spec": "mocha",
     "test": "npm run lint && npm run spec"

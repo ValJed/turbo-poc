@@ -1,8 +1,6 @@
-module.exports = async ({
-  mode, base, root, resolveRoot, resolvePackages, cacheDir, manifestRelPath, sourceMaps
+module.exports = ({
+  mode, base, root, cacheDir, manifestRelPath, sourceMaps
 }) => {
-  const pnpmResolve = await import('./vite-plugin-pnpm-resolve.mjs');
-
   /** @type {import('vite').UserConfig} */
   const config = {
     mode,
@@ -15,6 +13,7 @@ module.exports = async ({
     publicDir: false,
     cacheDir,
     clearScreen: false,
+    // Breaks symlinked modules if not enabled
     resolve: {
       preserveSymlinks: true
     },
@@ -29,12 +28,7 @@ module.exports = async ({
         }
       }
     },
-    plugins: [
-      pnpmResolve.default({
-        projectRoot: resolveRoot,
-        pkgs: resolvePackages
-      })
-    ],
+    plugins: [],
     build: {
       outDir: 'dist',
       cssCodeSplit: true,
