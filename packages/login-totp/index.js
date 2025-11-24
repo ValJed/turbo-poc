@@ -4,6 +4,8 @@ const totp = require('totp-generator');
 const path = require('path');
 const fs = require('fs');
 
+console.log('=====> change in totp <=====')
+
 module.exports = {
   improve: '@apostrophecms/login',
   bundle: {
